@@ -1,0 +1,22 @@
+{
+  "name": "plant-monitor-performance",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w @pmp/api\" \"npm run dev -w @pmp/web\"",
+    "dev:api": "npm run dev -w @pmp/api",
+    "dev:web": "npm run dev -w @pmp/web",
+    "build": "npm run build -w @pmp/api && npm run build -w @pmp/web",
+    "test": "npm run test -w @pmp/api",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run db:migrate -w @pmp/api",
+    "db:seed": "npm run db:seed -w @pmp/api",
+    "db:reset": "npm run db:reset -w @pmp/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

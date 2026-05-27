@@ -1,0 +1,14 @@
+node_modules/
+.next/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+storage/documents/*
+!storage/documents/.gitkeep
+apps/api/prisma/*.db
+coverage/
+.turbo/

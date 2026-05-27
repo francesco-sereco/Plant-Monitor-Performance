@@ -1,0 +1,12 @@
+---
+description: Regole sicurezza PMP
+globs: apps/**/*
+alwaysApply: true
+---
+
+# Security rules
+
+- PDF solo in storage privato, download via API autorizzata
+- Validare input lato server con Zod
+- Non loggare password, token o contenuto PDF completo
+- Auth disabilitabile in dev via AUTH_ENABLED=false

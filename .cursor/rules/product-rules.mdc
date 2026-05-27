@@ -1,0 +1,13 @@
+---
+description: Regole prodotto Plant Monitor Performance
+globs: **/*
+alwaysApply: true
+---
+
+# Product rules
+
+- Segui sempre `docs/PRD.md` come fonte di verità
+- MVP core: clienti, impianti, rilevazioni, limiti, grafici — no parser PDF nel primo ciclo
+- Limiti chimici sempre configurabili, mai hardcoded
+- Fuori limite: colore rosso + badge testuale
+- Priorità limiti: impianto > cliente > tipologia > settore > globale

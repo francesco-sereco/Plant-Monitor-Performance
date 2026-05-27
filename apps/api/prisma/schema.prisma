@@ -1,0 +1,360 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  assistenza
+  commerciale
+}
+
+enum UserStatus {
+  active
+  inactive
+}
+
+enum CustomerStatus {
+  active
+  archived
+}
+
+enum PlantStatus {
+  active
+  inactive
+  maintenance
+}
+
+enum LimitScopeType {
+  global
+  sector
+  plant_type
+  customer
+  plant
+}
+
+enum SourceType {
+  manual
+  technical_report
+  lab_autocontrol
+  pdf_import
+  other
+}
+
+enum SessionStatus {
+  draft
+  confirmed
+  corrected
+  deleted
+}
+
+enum ComplianceStatus {
+  compliant
+  out_of_limit
+  limit_not_configured
+  incomplete
+  not_applicable
+}
+
+enum DocumentType {
+  takeoff_report
+  lab_autocontrol
+  other_pdf
+}
+
+enum UploadStatus {
+  pending
+  uploaded
+  failed
+}
+
+enum PdfImportStatus {
+  uploaded
+  processing
+  needs_review
+  confirmed
+  failed
+  discarded
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  role         UserRole
+  status       UserStatus @default(active)
+  lastLoginAt  DateTime?  @map("last_login_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  limitsCreated       Limit[]              @relation("LimitCreatedBy")
+  sessionsCreated     MeasurementSession[] @relation("SessionCreatedBy")
+  documentsUploaded   Document[]           @relation("DocumentUploadedBy")
+  pdfImportJobs       PdfImportJob[]       @relation("ImportCreatedBy")
+  auditLogs           AuditLog[]
+
+  @@map("users")
+}
+
+model Sector {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  customers Customer[]
+
+  @@map("sectors")
+}
+
+model Customer {
+  id           String         @id @default(cuid())
+  code         String         @unique
+  businessName String         @map("business_name")
+  sectorId     String         @map("sector_id")
+  address      String?
+  city         String?
+  province     String?
+  country      String?        @default("Italia")
+  contactName  String?        @map("contact_name")
+  contactEmail String?        @map("contact_email")
+  contactPhone String?        @map("contact_phone")
+  status       CustomerStatus @default(active)
+  notes        String?
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  deletedAt    DateTime?      @map("deleted_at")
+
+  sector              Sector               @relation(fields: [sectorId], references: [id])
+  plants              Plant[]
+  measurementSessions MeasurementSession[]
+  documents           Document[]
+
+  @@map("customers")
+}
+
+model PlantType {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  plants Plant[]
+
+  @@map("plant_types")
+}
+
+model Plant {
+  id               String      @id @default(cuid())
+  customerId       String      @map("customer_id")
+  plantTypeId      String      @map("plant_type_id")
+  name             String
+  description      String?
+  serialNumber     String?     @map("serial_number")
+  installationDate DateTime?   @map("installation_date")
+  location         String?
+  status           PlantStatus @default(active)
+  notes            String?
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+  deletedAt        DateTime?   @map("deleted_at")
+
+  customer            Customer             @relation(fields: [customerId], references: [id])
+  plantType           PlantType            @relation(fields: [plantTypeId], references: [id])
+  measurementSessions MeasurementSession[]
+  documents           Document[]
+
+  @@map("plants")
+}
+
+model Unit {
+  id          String   @id @default(cuid())
+  symbol      String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  defaultForParameters ChemicalParameter[] @relation("DefaultUnit")
+  limits               Limit[]
+  measurements         Measurement[]
+
+  @@map("units")
+}
+
+model ChemicalParameter {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  defaultUnitId String?  @map("default_unit_id")
+  description   String?
+  isNumeric     Boolean  @default(true) @map("is_numeric")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  defaultUnit Unit?         @relation("DefaultUnit", fields: [defaultUnitId], references: [id])
+  limits      Limit[]
+  measurements Measurement[]
+
+  @@map("chemical_parameters")
+}
+
+model SamplingPoint {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  measurements Measurement[]
+
+  @@map("sampling_points")
+}
+
+model Limit {
+  id                  String         @id @default(cuid())
+  chemicalParameterId String         @map("chemical_parameter_id")
+  unitId              String         @map("unit_id")
+  scopeType           LimitScopeType @map("scope_type")
+  scopeId             String?        @map("scope_id")
+  minValue            Decimal?       @map("min_value") @db.Decimal(18, 6)
+  maxValue            Decimal?       @map("max_value") @db.Decimal(18, 6)
+  legalReferenceText  String?        @map("legal_reference_text")
+  validFrom           DateTime?      @map("valid_from")
+  validTo             DateTime?      @map("valid_to")
+  active              Boolean        @default(true)
+  notes               String?
+  createdById         String?        @map("created_by")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+
+  chemicalParameter ChemicalParameter @relation(fields: [chemicalParameterId], references: [id])
+  unit              Unit              @relation(fields: [unitId], references: [id])
+  createdBy         User?             @relation("LimitCreatedBy", fields: [createdById], references: [id])
+  appliedMeasurements Measurement[]   @relation("AppliedLimit")
+
+  @@map("limits")
+}
+
+model MeasurementSession {
+  id              String        @id @default(cuid())
+  customerId      String        @map("customer_id")
+  plantId         String        @map("plant_id")
+  measurementDate DateTime      @map("measurement_date")
+  sourceType      SourceType    @default(manual) @map("source_type")
+  sourceDocumentId String?      @map("source_document_id")
+  technicianName  String?       @map("technician_name")
+  laboratoryName  String?       @map("laboratory_name")
+  status          SessionStatus @default(confirmed)
+  notes           String?
+  createdById     String?       @map("created_by")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  deletedAt       DateTime?     @map("deleted_at")
+
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  plant        Plant         @relation(fields: [plantId], references: [id])
+  createdBy    User?         @relation("SessionCreatedBy", fields: [createdById], references: [id])
+  measurements Measurement[]
+  documents    Document[]
+
+  @@map("measurement_sessions")
+}
+
+model Measurement {
+  id                   String           @id @default(cuid())
+  measurementSessionId String           @map("measurement_session_id")
+  chemicalParameterId  String           @map("chemical_parameter_id")
+  samplingPointId      String           @map("sampling_point_id")
+  valueNumeric         Decimal?         @map("value_numeric") @db.Decimal(18, 6)
+  valueText            String?          @map("value_text")
+  unitId               String           @map("unit_id")
+  appliedLimitId       String?          @map("applied_limit_id")
+  limitMinSnapshot     Decimal?         @map("limit_min_snapshot") @db.Decimal(18, 6)
+  limitMaxSnapshot     Decimal?         @map("limit_max_snapshot") @db.Decimal(18, 6)
+  complianceStatus     ComplianceStatus @default(incomplete) @map("compliance_status")
+  notes                String?
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+  deletedAt            DateTime?        @map("deleted_at")
+
+  session           MeasurementSession @relation(fields: [measurementSessionId], references: [id], onDelete: Cascade)
+  chemicalParameter ChemicalParameter  @relation(fields: [chemicalParameterId], references: [id])
+  samplingPoint     SamplingPoint      @relation(fields: [samplingPointId], references: [id])
+  unit              Unit               @relation(fields: [unitId], references: [id])
+  appliedLimit      Limit?             @relation("AppliedLimit", fields: [appliedLimitId], references: [id])
+
+  @@map("measurements")
+}
+
+model Document {
+  id                   String       @id @default(cuid())
+  customerId           String       @map("customer_id")
+  plantId              String?      @map("plant_id")
+  measurementSessionId String?      @map("measurement_session_id")
+  documentType         DocumentType @default(other_pdf) @map("document_type")
+  originalFilename     String       @map("original_filename")
+  storedFilename       String       @map("stored_filename")
+  storagePath          String       @map("storage_path")
+  mimeType             String       @map("mime_type")
+  fileSize             Int          @map("file_size")
+  uploadStatus         UploadStatus @default(uploaded) @map("upload_status")
+  uploadedById         String?      @map("uploaded_by")
+  uploadedAt           DateTime     @default(now()) @map("uploaded_at")
+  deletedAt            DateTime?    @map("deleted_at")
+
+  customer           Customer            @relation(fields: [customerId], references: [id])
+  plant              Plant?              @relation(fields: [plantId], references: [id])
+  measurementSession MeasurementSession? @relation(fields: [measurementSessionId], references: [id])
+  uploadedBy         User?               @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
+  pdfImportJobs      PdfImportJob[]
+
+  @@map("documents")
+}
+
+model PdfImportJob {
+  id                   String          @id @default(cuid())
+  documentId           String          @map("document_id")
+  status               PdfImportStatus @default(uploaded)
+  parserType           String?         @map("parser_type")
+  rawExtractedText     String?         @map("raw_extracted_text")
+  structuredOutputJson Json?           @map("structured_output_json")
+  errorMessage         String?         @map("error_message")
+  createdById          String?         @map("created_by")
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+
+  document  Document @relation(fields: [documentId], references: [id])
+  createdBy User?    @relation("ImportCreatedBy", fields: [createdById], references: [id])
+
+  @@map("pdf_import_jobs")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?  @map("actor_user_id")
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id")
+  beforeJson  Json?    @map("before_json")
+  afterJson   Json?    @map("after_json")
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorUserId], references: [id])
+
+  @@map("audit_logs")
+}

@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pmp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pmp
+      POSTGRES_PASSWORD: pmp_dev_password
+      POSTGRES_DB: plant_monitor_performance
+    ports:
+      - "5432:5432"
+    volumes:
+      - pmp_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  pmp_postgres_data:
