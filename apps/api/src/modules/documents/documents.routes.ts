@@ -1,7 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
-import fs from "fs";
 import crypto from "crypto";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
@@ -10,6 +9,7 @@ import { paramId } from "../../lib/params.js";
 import { asyncHandler } from "../../middleware/error-handler.js";
 import { requireWriteAccess } from "../../middleware/auth.js";
 import { writeAuditLog } from "../audit/audit.service.js";
+import { getDocumentStorage } from "../../lib/storage/index.js";
 
 const uploadSchema = z.object({
   customerId: z.string().min(1),
@@ -18,22 +18,8 @@ const uploadSchema = z.object({
   documentType: z.enum(["takeoff_report", "lab_autocontrol", "other_pdf"]).optional(),
 });
 
-function ensureStorageDir() {
-  const dir = path.resolve(config.storagePath);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  return dir;
-}
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, ensureStorageDir()),
-  filename: (_req, file, cb) => {
-    const stored = `${crypto.randomUUID()}${path.extname(file.originalname)}`;
-    cb(null, stored);
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: config.maxPdfSizeMb * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype !== "application/pdf") {
@@ -71,6 +57,14 @@ documentsRouter.post(
     if (!req.file) return res.status(400).json({ error: "File PDF richiesto" });
 
     const meta = uploadSchema.parse(req.body);
+    const storedFilename = `${crypto.randomUUID()}${path.extname(req.file.originalname)}`;
+    const storage = getDocumentStorage();
+    const stored = await storage.save({
+      buffer: req.file.buffer,
+      storedFilename,
+      mimeType: req.file.mimetype,
+    });
+
     const document = await prisma.document.create({
       data: {
         customerId: meta.customerId,
@@ -78,8 +72,8 @@ documentsRouter.post(
         measurementSessionId: meta.measurementSessionId || null,
         documentType: meta.documentType ?? "other_pdf",
         originalFilename: req.file.originalname,
-        storedFilename: req.file.filename,
-        storagePath: req.file.path,
+        storedFilename: stored.storedFilename,
+        storagePath: stored.storagePath,
         mimeType: req.file.mimetype,
         fileSize: req.file.size,
         uploadedById: req.user?.id,
@@ -106,10 +100,19 @@ documentsRouter.get(
       where: { id: paramId(req.params.id), deletedAt: null },
     });
     if (!document) return res.status(404).json({ error: "Documento non trovato" });
-    if (!fs.existsSync(document.storagePath)) {
+
+    const storage = getDocumentStorage();
+    if (!(await storage.exists(document.storagePath))) {
       return res.status(404).json({ error: "File non trovato nello storage" });
     }
-    res.download(document.storagePath, document.originalFilename);
+
+    res.setHeader("Content-Type", document.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${encodeURIComponent(document.originalFilename)}"`
+    );
+    const stream = await storage.createReadStream(document.storagePath);
+    stream.pipe(res);
   })
 );
 

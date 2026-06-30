@@ -58,8 +58,31 @@ Il progetto usa **un solo database**: Supabase PostgreSQL (`kctqmywrtxekvwiynfla
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API → service_role |
 | `DATABASE_URL` | Configurata per ruolo `pmp_app` (vedi `.env` locale) |
 | `SUPABASE_DB_PASSWORD` | Password ruolo `pmp_app` |
+| `R2_*` | Cloudflare R2 — vedi sezione Storage PDF sotto |
 
 > Un solo file `.env` nella root del monorepo: viene letto da API, Next.js e Prisma.
+
+### Storage PDF (Cloudflare R2)
+
+Bucket **`pmp-documents`** (regione EEUR), privato — i PDF si scaricano solo via `GET /api/documents/:id/download`.
+
+| Variabile | Descrizione |
+|---|---|
+| `STORAGE_BACKEND` | `local` (dev) o `r2` (produzione) |
+| `R2_ACCOUNT_ID` | Account ID Cloudflare |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Token S3 R2 (solo backend) |
+| `R2_BUCKET_NAME` | `pmp-documents` |
+| `R2_OBJECT_PREFIX` | Prefisso oggetti, default `documents` |
+
+Setup automatico (crea token S3 e scrive `.env`):
+
+```bash
+# Token da https://dash.cloudflare.com/profile/api-tokens (permesso R2 Edit)
+set CLOUDFLARE_API_TOKEN=il_tuo_token
+npm run setup:r2
+```
+
+In dev senza credenziali R2 l'API usa storage locale (`STORAGE_BACKEND=local`).
 
 ### PostgreSQL locale (solo fallback, non usato con Supabase)
 

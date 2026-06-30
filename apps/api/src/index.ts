@@ -4,7 +4,7 @@ import { assertSupabaseConfig } from "./lib/env.js";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import { config } from "./lib/config.js";
+import { assertR2Config, config } from "./lib/config.js";
 import { optionalAuth, requireAuth } from "./middleware/auth.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
@@ -24,6 +24,7 @@ import { analyticsRouter } from "./modules/analytics/analytics.routes.js";
 import { documentsRouter } from "./modules/documents/documents.routes.js";
 
 assertSupabaseConfig();
+assertR2Config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootStorage = path.resolve(__dirname, "../../../storage/documents");
@@ -39,6 +40,10 @@ app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
     authEnabled: config.authEnabled,
+    storage: {
+      backend: config.storage.backend,
+      bucket: config.storage.backend === "r2" ? config.storage.r2.bucket : undefined,
+    },
     supabase: {
       configured: Boolean(config.supabase.url && config.supabase.serviceRoleKey),
     },

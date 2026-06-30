@@ -18,9 +18,11 @@
     "db:seed": "node scripts/seed-supabase-rest.mjs",
     "db:seed:prisma": "npm run db:seed -w @pmp/api",
     "db:reset": "npm run db:reset -w @pmp/api",
-    "verify:supabase": "node scripts/verify-supabase.mjs"
+    "verify:supabase": "node scripts/verify-supabase.mjs",
+    "setup:r2": "node scripts/setup-r2.mjs"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.840.0",
     "concurrently": "^9.1.2",
     "dotenv-cli": "^8.0.0"
   }
