@@ -1,9 +1,19 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { config, type AuthUser } from "../lib/config.js";
+import type { AuthUser } from "../lib/config.js";
 
 function isAuthEnabled() {
   return process.env.AUTH_ENABLED === "true";
+}
+
+function jwtSecret() {
+  return process.env.JWT_SECRET ?? "dev-secret-change-me";
+}
+
+/** Public API paths (relative to /api) that skip mandatory auth. */
+function isPublicApiPath(req: Request): boolean {
+  const path = req.path.startsWith("/api") ? req.path.slice(4) : req.path;
+  return path === "/health" || path.startsWith("/auth");
 }
 
 export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
@@ -18,11 +28,18 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
 
   try {
     const token = header.slice(7);
-    req.user = jwt.verify(token, config.jwtSecret) as AuthUser;
+    req.user = jwt.verify(token, jwtSecret()) as AuthUser;
   } catch {
     // ignore invalid token; requireAuth will block if needed
   }
   next();
+}
+
+export function requireAuthUnlessPublic(req: Request, res: Response, next: NextFunction) {
+  if (!isAuthEnabled() || isPublicApiPath(req)) {
+    return next();
+  }
+  return requireAuth(req, res, next);
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {

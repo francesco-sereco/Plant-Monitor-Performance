@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, type Customer, type Sector } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import { PageHeader, LoadingState, ErrorState } from "@/components/ui";
 
 export default function CustomersPage() {
   const { canWrite } = useAuth();
+  const authReady = useAuthReady();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [search, setSearch] = useState("");
@@ -38,8 +40,9 @@ export default function CustomersPage() {
   };
 
   useEffect(() => {
+    if (!authReady) return;
     load();
-  }, [search, sectorId]);
+  }, [authReady, search, sectorId]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,7 +115,7 @@ export default function CustomersPage() {
         </form>
       )}
 
-      {loading ? (
+      {loading || !authReady ? (
         <LoadingState />
       ) : (
         <div className="table-wrap">

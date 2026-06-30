@@ -5,7 +5,7 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import { assertR2Config, config } from "./lib/config.js";
-import { optionalAuth, requireAuth } from "./middleware/auth.js";
+import { optionalAuth, requireAuthUnlessPublic } from "./middleware/auth.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { sectorsRouter } from "./modules/sectors/sectors.routes.js";
@@ -56,9 +56,7 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/auth", authRouter);
 
-if (config.authEnabled) {
-  app.use("/api", requireAuth);
-}
+app.use("/api", requireAuthUnlessPublic);
 
 app.use("/api/sectors", sectorsRouter);
 app.use("/api/customers", customersRouter);

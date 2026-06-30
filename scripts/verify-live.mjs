@@ -35,6 +35,11 @@ else if (!health.data?.postgres) {
   failed = true;
 } else if (health.authEnabled) {
   console.log("  authEnabled=true — skip lettura API protette (usa login)");
+  const authStatus = await check("/api/auth/status", "API auth status");
+  if (!authStatus || authStatus.authEnabled !== true) failed = true;
+  const loginPage = await fetch(`${base}/login`);
+  console.log(`${loginPage.ok ? "OK" : "FAIL"} Login page (${loginPage.status})`);
+  if (!loginPage.ok) failed = true;
 } else {
   const customers = await check("/api/customers", "API customers (DB)");
   if (!customers || !Array.isArray(customers) || customers.length === 0) {

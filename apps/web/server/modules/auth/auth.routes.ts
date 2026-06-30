@@ -3,7 +3,6 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
-import { config } from "../../lib/config.js";
 import { asyncHandler } from "../../middleware/error-handler.js";
 import { optionalAuth, requireAuth } from "../../middleware/auth.js";
 
@@ -31,7 +30,7 @@ authRouter.post(
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     const token = jwt.sign(
       { id: user.id, email: user.email, name: user.name, role: user.role },
-      config.jwtSecret,
+      process.env.JWT_SECRET ?? "dev-secret-change-me",
       { expiresIn: "8h" }
     );
     res.json({
@@ -52,6 +51,6 @@ authRouter.get(
 authRouter.get(
   "/status",
   asyncHandler(async (_req, res) => {
-    res.json({ authEnabled: config.authEnabled });
+    res.json({ authEnabled: process.env.AUTH_ENABLED === "true" });
   })
 );

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import { PageHeader, LoadingState, ErrorState } from "@/components/ui";
 
 type DashboardData = {
@@ -14,14 +15,18 @@ type DashboardData = {
 };
 
 export default function DashboardPage() {
+  const authReady = useAuthReady();
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!authReady) return;
     api<DashboardData>("/api/analytics/dashboard")
       .then(setData)
       .catch((e) => setError(e.message));
-  }, []);
+  }, [authReady]);
+
+  if (!authReady) return <LoadingState />;
 
   if (error) return <ErrorState message={error} />;
   if (!data) return <LoadingState />;
