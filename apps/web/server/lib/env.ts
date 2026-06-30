@@ -19,7 +19,20 @@ function ensureDatabaseUrl(): void {
   process.env.DATABASE_URL = `postgresql://postgres.${SUPABASE_PROJECT_REF}:${encoded}@aws-0-${SUPABASE_REGION}.pooler.supabase.com:5432/postgres`;
 }
 
+/**
+ * Su Vercel usa il transaction pooler (6543) per evitare "max clients reached" in session mode.
+ */
+function ensureServerlessDatabasePool(): void {
+  if (!process.env.VERCEL || !process.env.DATABASE_URL) return;
+  let url = process.env.DATABASE_URL;
+  if (!url.includes(":5432/") || url.includes("pgbouncer=true")) return;
+  url = url.replace(":5432/", ":6543/");
+  const sep = url.includes("?") ? "&" : "?";
+  process.env.DATABASE_URL = `${url}${sep}pgbouncer=true&connection_limit=1`;
+}
+
 ensureDatabaseUrl();
+ensureServerlessDatabasePool();
 
 /** Ricarica .env dalla root del monorepo (idempotente). */
 export function loadRootEnv(): void {
