@@ -8,13 +8,14 @@ const base = (process.argv[2] ?? "https://pmp-web-five.vercel.app").replace(/\/$
 async function check(path, label) {
   const url = `${base}${path}`;
   const res = await fetch(url);
-  const ok = res.ok;
+  const text = await res.text();
   let body;
   try {
-    body = await res.json();
+    body = JSON.parse(text);
   } catch {
-    body = await res.text();
+    body = text;
   }
+  const ok = res.ok;
   console.log(`${ok ? "OK" : "FAIL"} ${label} (${res.status}) ${url}`);
   if (!ok) {
     console.error("  ", typeof body === "string" ? body.slice(0, 200) : JSON.stringify(body).slice(0, 200));
