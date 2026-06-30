@@ -108,6 +108,34 @@ Auth disabilitata di default (`AUTH_ENABLED=false`). Imposta `AUTH_ENABLED=true`
 npm run test
 ```
 
+## Deploy Vercel
+
+Monorepo con **due progetti** sullo stesso repository GitHub:
+
+| Progetto | Root directory | URL tipica |
+|---|---|---|
+| `pmp-api` | `apps/api` | `https://pmp-api-*.vercel.app` |
+| `pmp-web` | `apps/web` | `https://pmp-web-*.vercel.app` |
+
+### Variabili ambiente su Vercel
+
+Copia le variabili da `.env` (stesse chiavi per entrambi i progetti, tranne dove indicato):
+
+- **Entrambi:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `JWT_SECRET`, `AUTH_ENABLED`, `STORAGE_BACKEND`, `R2_*`, `MAX_PDF_SIZE_MB`
+- **Solo web:** `NEXT_PUBLIC_API_URL` = URL produzione del progetto API (senza trailing slash)
+
+### Comandi utili
+
+```bash
+# CLI (dalla root del repo)
+npx vercel link --cwd apps/api
+npx vercel link --cwd apps/web
+npx vercel --cwd apps/api --prod
+npx vercel --cwd apps/web --prod
+```
+
+Dopo il push su `master`, Vercel esegue il deploy automatico se i progetti sono collegati al repository.
+
 ## Documentazione
 
 - [PRD](docs/PRD.md)

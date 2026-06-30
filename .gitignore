@@ -16,3 +16,4 @@ apps/api/prisma/dev.db-journal
 apps/api/prisma/prisma/
 coverage/
 .turbo/
+.vercel/
