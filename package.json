@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "npm run dev -w @pmp/web",
     "dev:web": "npm run dev -w @pmp/web",
-    "build": "npm run build -w @pmp/web",
+    "build": "npm run vercel-build -w @pmp/web",
     "test": "npm run test -w @pmp/web",
     "db:check": "node scripts/verify-supabase.mjs",
     "db:configure": "node scripts/configure-database-url.mjs",
@@ -20,7 +20,9 @@
     "verify:supabase": "node scripts/verify-supabase.mjs",
     "verify:r2": "node scripts/verify-r2.mjs",
     "verify:stack": "node scripts/verify-stack.mjs",
-    "setup:r2": "node scripts/setup-r2.mjs"
+    "verify:live": "node scripts/verify-live.mjs",
+    "setup:r2": "node scripts/setup-r2.mjs",
+    "admin:create": "node scripts/create-admin-user.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.840.0",

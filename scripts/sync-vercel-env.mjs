@@ -13,7 +13,7 @@ const targetCwd = path.resolve(root, process.argv[2] ?? "apps/web");
 const skipArg = process.argv.find((a) => a.startsWith("--skip="));
 const skip = new Set(
   (skipArg?.slice("--skip=".length) ??
-    "API_PORT,STORAGE_PATH,SUPABASE_ACCESS_TOKEN,NEXT_PUBLIC_API_URL")
+    "API_PORT,STORAGE_PATH,SUPABASE_ACCESS_TOKEN,NEXT_PUBLIC_API_URL,AUTH_ENABLED")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean)
@@ -50,6 +50,16 @@ const vars = parseEnv(fs.readFileSync(envPath, "utf8"));
 const keys = Object.keys(vars).filter((k) => !skip.has(k));
 
 console.log(`Sincronizzazione ${keys.length} variabili verso ${targetCwd}`);
+
+// MVP: auth disabilitata in produzione finché il login non è validato end-to-end
+for (const env of ["production", "preview"]) {
+  const add = spawnSync(
+    "npx",
+    ["vercel@latest", "env", "add", "AUTH_ENABLED", env, "--yes", "--force"],
+    { input: "false", encoding: "utf8", stdio: ["pipe", "pipe", "pipe"], shell: true, cwd: targetCwd }
+  );
+  if (add.status === 0) console.log(`  OK AUTH_ENABLED [${env}] = false (forzato MVP)`);
+}
 
 for (const key of keys) {
   const value = vars[key];
