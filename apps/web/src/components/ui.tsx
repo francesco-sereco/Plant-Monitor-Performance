@@ -1,5 +1,14 @@
-export function LoadingState() {
-  return <div className="py-12 text-center text-slate-500">Caricamento...</div>;
+export function LoadingState({ fullScreen, message }: { fullScreen?: boolean; message?: string }) {
+  const content = (
+    <div className="flex flex-col items-center gap-3 text-slate-500">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600" />
+      <span className="text-sm">{message ?? "Caricamento..."}</span>
+    </div>
+  );
+  if (fullScreen) {
+    return <div className="flex min-h-screen items-center justify-center bg-slate-50">{content}</div>;
+  }
+  return <div className="py-12 text-center">{content}</div>;
 }
 
 export function ErrorState({ message }: { message: string }) {

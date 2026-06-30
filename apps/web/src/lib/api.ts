@@ -27,7 +27,17 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new ApiError(body.error ?? "Errore API", res.status);
+    const message = body.error ?? "Errore API";
+
+    if (res.status === 401 && !path.includes("/auth/login") && typeof window !== "undefined") {
+      setAuthToken(null);
+      const redirect = encodeURIComponent(window.location.pathname);
+      if (!window.location.pathname.startsWith("/login")) {
+        window.location.href = `/login?redirect=${redirect}`;
+      }
+    }
+
+    throw new ApiError(message, res.status);
   }
 
   if (res.status === 204) return undefined as T;
