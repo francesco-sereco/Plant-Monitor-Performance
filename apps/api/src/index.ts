@@ -1,6 +1,6 @@
 import "./lib/env.js";
 import express from "express";
-import { assertSupabaseConfig } from "./lib/env.js";
+import { assertSupabaseConfig, assertDataStackSeparation } from "./lib/env.js";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -24,6 +24,7 @@ import { analyticsRouter } from "./modules/analytics/analytics.routes.js";
 import { documentsRouter } from "./modules/documents/documents.routes.js";
 
 assertSupabaseConfig();
+assertDataStackSeparation();
 assertR2Config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -40,12 +41,15 @@ app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
     authEnabled: config.authEnabled,
-    storage: {
+    data: {
+      provider: "supabase",
+      postgres: Boolean(process.env.DATABASE_URL),
+      configured: Boolean(config.supabase.url && config.supabase.serviceRoleKey),
+    },
+    files: {
+      provider: config.storage.backend === "r2" ? "cloudflare-r2" : "local",
       backend: config.storage.backend,
       bucket: config.storage.backend === "r2" ? config.storage.r2.bucket : undefined,
-    },
-    supabase: {
-      configured: Boolean(config.supabase.url && config.supabase.serviceRoleKey),
     },
   });
 });

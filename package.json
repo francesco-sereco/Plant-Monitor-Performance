@@ -19,6 +19,8 @@
     "db:seed:prisma": "npm run db:seed -w @pmp/api",
     "db:reset": "npm run db:reset -w @pmp/api",
     "verify:supabase": "node scripts/verify-supabase.mjs",
+    "verify:r2": "node scripts/verify-r2.mjs",
+    "verify:stack": "node scripts/verify-stack.mjs",
     "setup:r2": "node scripts/setup-r2.mjs"
   },
   "devDependencies": {

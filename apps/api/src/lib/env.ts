@@ -52,8 +52,17 @@ export function assertSupabaseConfig(): void {
 
   if (missing.length > 0) {
     console.warn(
-      `[PMP] Variabili Supabase mancanti: ${missing.join(", ")}. ` +
+      `[PMP] Variabili Supabase (dati) mancanti: ${missing.join(", ")}. ` +
         "Copia .env.example → .env e inserisci i valori dal dashboard Supabase."
+    );
+  }
+}
+
+/** Supabase = dati PostgreSQL. I file PDF vanno su R2, non su Supabase Storage. */
+export function assertDataStackSeparation(): void {
+  if (process.env.SUPABASE_STORAGE_BUCKET) {
+    console.warn(
+      "[PMP] SUPABASE_STORAGE_BUCKET è impostato ma non usato: i documenti sono su Cloudflare R2."
     );
   }
 }

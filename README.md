@@ -4,8 +4,10 @@ Applicativo web interno per storicizzare, consultare e analizzare parametri chim
 
 ## Stack
 
-- **Frontend:** Next.js 15 + Tailwind CSS + Recharts + Supabase client
-- **Backend:** Express + Prisma + PostgreSQL (Supabase)
+- **Frontend:** Next.js 15 + Tailwind CSS + Recharts
+- **Dati:** Supabase PostgreSQL + Prisma (solo metadati e relazioni — **no Supabase Storage**)
+- **Documenti/file:** Cloudflare R2 (bucket privato `pmp-documents`, download via API)
+- **Backend:** Express
 - **Monorepo:** npm workspaces
 
 ## Avvio locale (Supabase)
@@ -30,8 +32,8 @@ npm install
 npm run db:deploy
 npm run db:seed
 
-# (opzionale) Verifica connessione
-npm run verify:supabase
+# (opzionale) Verifica stack dati + documenti
+npm run verify:stack
 
 # 5. Avvia API + Web
 npm run dev
@@ -40,9 +42,9 @@ npm run dev
 - **Web:** http://localhost:3000
 - **API:** http://localhost:4000/api/health
 
-### Database
+### Database (Supabase — solo dati)
 
-Il progetto usa **un solo database**: Supabase PostgreSQL (`kctqmywrtxekvwiynfla`, regione `eu-west-1`).
+Il progetto usa **Supabase solo per PostgreSQL**: clienti, impianti, rilevazioni, limiti, metadati documenti. I file PDF **non** vanno su Supabase Storage.
 
 - **Schema:** migrazione Prisma + `npm run db:deploy`
 - **Prisma:** ruolo dedicato `pmp_app` (pooler session mode, porta 5432)
@@ -82,7 +84,9 @@ set CLOUDFLARE_API_TOKEN=il_tuo_token
 npm run setup:r2
 ```
 
-In dev senza credenziali R2 l'API usa storage locale (`STORAGE_BACKEND=local`).
+In dev senza credenziali R2 imposta `STORAGE_BACKEND=local` (fallback disco).
+
+Verifica rapida: `npm run verify:stack` (Supabase + R2).
 
 ### PostgreSQL locale (solo fallback, non usato con Supabase)
 
