@@ -55,13 +55,13 @@ for (const key of keys) {
   for (const env of ["production", "preview", "development"]) {
     const add = spawnSync(
       "npx",
-      ["vercel@latest", "env", "add", key, env, "--cwd", targetCwd, "--yes", "--force"],
+      ["vercel@latest", "env", "add", key, env, "--yes", "--force"],
       {
         input: value,
         encoding: "utf8",
         stdio: ["pipe", "pipe", "pipe"],
         shell: true,
-        cwd: root,
+        cwd: targetCwd,
       }
     );
     if (add.status !== 0 && !add.stderr?.includes("already exists")) {
