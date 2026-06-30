@@ -10,5 +10,9 @@ build/
 storage/documents/*
 !storage/documents/.gitkeep
 apps/api/prisma/*.db
+apps/api/prisma/**/*.db
+apps/api/prisma/dev.db
+apps/api/prisma/dev.db-journal
+apps/api/prisma/prisma/
 coverage/
 .turbo/

@@ -1,0 +1,50 @@
+---
+description: Metodo operativo standard e stack di riferimento
+globs: **/*
+alwaysApply: true
+---
+
+# Metodo di lavoro standard (stack + guardrail)
+
+## Stack di riferimento (default)
+
+- GitHub → Cursor → AI con Groq → Supabase (dati) → Cloudflare R2 (documenti/file) → Vercel (deploy web)
+
+Non proporre tecnologie alternative se non **realmente necessarie**. Se proponi un’alternativa, spiega il **vantaggio concreto** rispetto allo stack standard.
+
+## Principi
+
+- Mantieni il progetto semplice, scalabile e comprensibile. Evita over-engineering e librerie inutili.
+- Procedi per step piccoli e raggruppa le modifiche per logica (non mischiare refactor/feature/fix senza motivo).
+- Non inserire mai chiavi/token/credenziali nel codice. Usa sempre variabili ambiente.
+- Le chiavi sensibili non devono mai essere esposte lato client (no service role key nel frontend).
+
+## Supabase (dati)
+
+- Usa Supabase per database, auth e dati strutturati (considera sempre RLS e permessi).
+- Nel DB salva metadati/relazioni/stati/configurazioni e riferimenti ai file, non file pesanti.
+
+## Cloudflare R2 (file)
+
+- I file (PDF/immagini/esportazioni) stanno su R2; in Supabase solo metadati + path.
+- Non esporre file privati: prevedi download tramite backend autorizzato e/o URL firmati.
+
+## Groq (AI)
+
+- Se serve AI, Groq è la prima scelta.
+- Separa la logica AI in moduli/servizi dedicati; gestisci errori/timeout/output non valido.
+
+## Vercel (deploy)
+
+- Pensa già al deploy su Vercel: env vars compatibili, separa local/staging/prod, evita processi non deployabili.
+
+## Output richiesto (sempre)
+
+Quando aiuti sul progetto, includi sempre:
+- cosa hai fatto
+- dove lo hai fatto (file/cartelle/endpoint)
+- perché lo hai fatto così
+- cosa devo controllare
+- variabili ambiente da aggiungere (se applicabile)
+- passi GitHub/Vercel/Supabase/R2 da completare (se applicabile)
+
