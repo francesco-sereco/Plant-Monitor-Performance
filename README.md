@@ -110,31 +110,25 @@ npm run test
 
 ## Deploy Vercel
 
-Monorepo con **due progetti** sullo stesso repository GitHub:
+**Un solo progetto** `pmp-web` (root directory `apps/web`): Next.js + API Express same-origin su `/api/*`.
 
-| Progetto | Root directory | URL tipica |
-|---|---|---|
-| `pmp-api` | `apps/api` | `https://pmp-api-*.vercel.app` |
-| `pmp-web` | `apps/web` | `https://pmp-web-*.vercel.app` |
+| URL produzione | Ruolo |
+|---|---|
+| https://pmp-web-five.vercel.app | Frontend + API (`/api/health`, CRUD, documenti) |
 
-### Variabili ambiente su Vercel
+### Variabili ambiente
 
-Copia le variabili da `.env` (stesse chiavi per entrambi i progetti, tranne dove indicato):
+Tutte sul progetto unificato `pmp-web`:
 
-- **Entrambi:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `JWT_SECRET`, `AUTH_ENABLED`, `STORAGE_BACKEND`, `R2_*`, `MAX_PDF_SIZE_MB`
-- **Solo web:** `NEXT_PUBLIC_API_URL` = URL produzione del progetto API (senza trailing slash)
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `JWT_SECRET`, `AUTH_ENABLED`, `STORAGE_BACKEND`, `R2_*`, `MAX_PDF_SIZE_MB`
 
-### Comandi utili
+**Non serve** `NEXT_PUBLIC_API_URL` in produzione (API same-origin).
 
 ```bash
-# CLI (dalla root del repo)
-npx vercel link --cwd apps/api
-npx vercel link --cwd apps/web
-npx vercel --cwd apps/api --prod
-npx vercel --cwd apps/web --prod
+node scripts/audit-vercel-env.mjs      # verifica .env locale
+node scripts/sync-vercel-env.mjs       # sync → Vercel (apps/web)
+npx vercel --cwd apps/web --prod       # deploy produzione
 ```
-
-Dopo il push su `master`, Vercel esegue il deploy automatico se i progetti sono collegati al repository.
 
 ## Documentazione
 

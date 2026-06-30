@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Sincronizza variabili da .env verso un progetto Vercel (senza stampare i valori).
- * Uso: node scripts/sync-vercel-env.mjs apps/api [--skip KEY1,KEY2]
+ * Uso: node scripts/sync-vercel-env.mjs [apps/web] [--skip KEY1,KEY2]
  */
 import fs from "fs";
 import path from "path";
@@ -9,10 +9,11 @@ import { spawnSync } from "child_process";
 import { fileURLToPath } from "url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const targetCwd = path.resolve(root, process.argv[2] ?? "apps/api");
+const targetCwd = path.resolve(root, process.argv[2] ?? "apps/web");
 const skipArg = process.argv.find((a) => a.startsWith("--skip="));
 const skip = new Set(
-  (skipArg?.slice("--skip=".length) ?? "API_PORT,STORAGE_PATH,SUPABASE_ACCESS_TOKEN")
+  (skipArg?.slice("--skip=".length) ??
+    "API_PORT,STORAGE_PATH,SUPABASE_ACCESS_TOKEN,NEXT_PUBLIC_API_URL")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean)

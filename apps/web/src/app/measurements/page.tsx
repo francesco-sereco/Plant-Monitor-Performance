@@ -7,7 +7,7 @@ import { api, type Customer, type Plant, type ChemicalParameter, type Measuremen
 import { ComplianceBadge, complianceRowClass } from "@/components/ComplianceBadge";
 import { PageHeader, LoadingState, ErrorState } from "@/components/ui";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 function MeasurementsContent() {
   const searchParams = useSearchParams();

@@ -5,7 +5,7 @@ import { api, type Document, type Customer, type Plant } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { PageHeader, LoadingState, ErrorState } from "@/components/ui";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export default function DocumentsPage() {
   const { canWrite } = useAuth();

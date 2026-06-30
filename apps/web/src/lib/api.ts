@@ -1,4 +1,5 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+/** Same-origin in produzione; override con NEXT_PUBLIC_API_URL solo in dev separato. */
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export class ApiError extends Error {
   constructor(
