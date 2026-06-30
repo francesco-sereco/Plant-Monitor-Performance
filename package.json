@@ -10,13 +10,18 @@
     "dev:web": "npm run dev -w @pmp/web",
     "build": "npm run build -w @pmp/api && npm run build -w @pmp/web",
     "test": "npm run test -w @pmp/api",
-    "db:up": "docker compose up -d",
-    "db:down": "docker compose down",
-    "db:migrate": "npm run db:migrate -w @pmp/api",
-    "db:seed": "npm run db:seed -w @pmp/api",
-    "db:reset": "npm run db:reset -w @pmp/api"
+    "db:check": "node scripts/verify-supabase.mjs",
+    "db:configure": "node scripts/configure-database-url.mjs",
+    "db:sync": "node scripts/seed-supabase-rest.mjs",
+    "db:migrate": "npm run db:deploy -w @pmp/api",
+    "db:deploy": "npm run db:deploy -w @pmp/api",
+    "db:seed": "node scripts/seed-supabase-rest.mjs",
+    "db:seed:prisma": "npm run db:seed -w @pmp/api",
+    "db:reset": "npm run db:reset -w @pmp/api",
+    "verify:supabase": "node scripts/verify-supabase.mjs"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "dotenv-cli": "^8.0.0"
   }
 }

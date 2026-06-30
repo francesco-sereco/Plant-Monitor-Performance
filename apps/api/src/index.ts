@@ -1,5 +1,6 @@
-import "dotenv/config";
+import "./lib/env.js";
 import express from "express";
+import { assertSupabaseConfig } from "./lib/env.js";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -22,6 +23,8 @@ import {
 import { analyticsRouter } from "./modules/analytics/analytics.routes.js";
 import { documentsRouter } from "./modules/documents/documents.routes.js";
 
+assertSupabaseConfig();
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootStorage = path.resolve(__dirname, "../../../storage/documents");
 process.env.STORAGE_PATH = process.env.STORAGE_PATH ?? rootStorage;
@@ -33,7 +36,13 @@ app.use(express.json());
 app.use(optionalAuth);
 
 app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", authEnabled: config.authEnabled });
+  res.json({
+    status: "ok",
+    authEnabled: config.authEnabled,
+    supabase: {
+      configured: Boolean(config.supabase.url && config.supabase.serviceRoleKey),
+    },
+  });
 });
 
 app.use("/api/auth", authRouter);
