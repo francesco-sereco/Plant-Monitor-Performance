@@ -6,10 +6,20 @@ import { asyncHandler } from "../../middleware/error-handler.js";
 import { requireWriteAccess } from "../../middleware/auth.js";
 
 const sectorSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
+  name: z.string().trim().min(1, "Il nome del settore è obbligatorio"),
+  description: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => (value === "" ? undefined : value)),
   active: z.boolean().optional(),
 });
+
+async function findSectorByName(name: string) {
+  return prisma.sector.findFirst({
+    where: { name: { equals: name, mode: "insensitive" } },
+  });
+}
 
 export const sectorsRouter = Router();
 
@@ -26,6 +36,12 @@ sectorsRouter.post(
   requireWriteAccess,
   asyncHandler(async (req, res) => {
     const data = sectorSchema.parse(req.body);
+    const existing = await findSectorByName(data.name);
+    if (existing) {
+      return res.status(409).json({
+        error: `Esiste già il settore "${existing.name}"`,
+      });
+    }
     const sector = await prisma.sector.create({ data });
     res.status(201).json(sector);
   })
@@ -36,6 +52,14 @@ sectorsRouter.patch(
   requireWriteAccess,
   asyncHandler(async (req, res) => {
     const data = sectorSchema.partial().parse(req.body);
+    if (data.name) {
+      const existing = await findSectorByName(data.name);
+      if (existing && existing.id !== paramId(req.params.id)) {
+        return res.status(409).json({
+          error: `Esiste già il settore "${existing.name}"`,
+        });
+      }
+    }
     const sector = await prisma.sector.update({ where: { id: paramId(req.params.id) }, data });
     res.json(sector);
   })

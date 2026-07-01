@@ -82,10 +82,18 @@ export default function CustomersPage() {
 
   const handleCreateSector = async (e: React.FormEvent) => {
     e.preventDefault();
+    const name = sectorForm.name.trim();
+    if (!name) {
+      setError("Inserisci il nome del settore");
+      return;
+    }
     try {
       const sector = await api<Sector>("/api/sectors", {
         method: "POST",
-        body: JSON.stringify(sectorForm),
+        body: JSON.stringify({
+          name,
+          description: sectorForm.description.trim() || undefined,
+        }),
       });
       setShowSectorForm(false);
       setSectorForm({ name: "", description: "" });
