@@ -1,36 +1,129 @@
-# Final Compliance Gate
+# Final Compliance Gate — Prompt 2
 
 **Data:** 2026-07-01  
 **Agente:** final-compliance-gate  
-**Esito:** **MVP tecnico parzialmente allineato**
+**Ispettore:** Non ottimista — evidenza obbligatoria
 
-## Risposte obbligatorie
+---
 
-| # | Domanda | Risposta | Evidenza |
-|---|---------|----------|----------|
-| 1 | Subagenti reali usati? | **SÌ** | Task tool: codebase-mapper, backend-api-auditor, frontend-ux-auditor, supabase-db-auditor, r2-document-auditor, groq-ai-auditor, env-secrets-auditor, security-privacy-auditor, ai-security-prompt-injection-auditor, malware-supply-chain-auditor, mock-static-removal-auditor, browser-live-tester, final-compliance-gate |
-| 2 | Output separati per agente? | **SÌ** | `docs/agentic-audit/0*.md`, `08*.md`, `15-18*.md` |
-| 3 | Supabase live verificato? | **SÌ** | MCP `list_tables`, `verify:supabase` |
-| 4 | RLS live verificata? | **SÌ** | Tutte 16 tabelle `rls_enabled=true` |
-| 5 | Policy verificate? | **PARZIALE** | Policy `pmp_app_all` USING(true) — permissive, no tenant isolation |
-| 6 | R2 live verificato? | **SÌ** | `verify:r2` read/write/delete |
-| 7 | Upload R2 da browser? | **NON DIMOSTRATO** | 0 documenti in DB; upload UI non testato in browser |
-| 8 | Download R2 verificato? | **PARZIALE** | Script R2 OK; endpoint download non testato con PDF reale |
-| 9 | Groq reale verificato? | **SÌ** | `ai:ping` locale + `/api/ai/ping` live |
-| 10 | Browser live autenticato? | **PARZIALE** | Login API live OK; no automazione browser/console |
-| 11 | Mock/static scan? | **SÌ** | `07_MOCK_STATIC_FALLBACK_AUDIT.md` |
-| 12 | Sicurezza auth/privacy? | **PARZIALE** | Fix applicati; RLS permissive; seed password su prod |
-| 13 | Prompt injection? | **PARZIALE** | Audit statico; no test malevolo |
-| 14 | Malware/supply-chain? | **PARZIALE** | Audit statico; npm audit non completo |
-| 15 | Test locali passati? | **SÌ** | 25/25 |
-| 16 | Build passata? | **SÌ** | `npm run build` |
-| 17 | Commit/push? | **PENDING** | Questo commit Prompt 2 |
-| 18 | Deploy production READY? | **SÌ** (pre-fix) | `dpl_E7PWbvhJc5aAkWYxkmb9ksvLxA7H` — nuovo deploy post-push pending |
-| 19 | Blocker? | **SÌ** | Browser UX completo; RLS granulare; Prisma debt; lint non eseguito |
-| 20 | Punti solo da codice? | **SÌ** | IDOR mitigato da auth; policy RLS non testate via anon client |
+## ESITO FINALE
 
-## Esito corretto
+# MVP tecnico parzialmente allineato
 
-**2. MVP tecnico parzialmente allineato**
+Non è consentito dichiarare **"MVP tecnico allineato"** per i blocker documentati sotto.
 
-Non è ammesso esito 1: mancano browser automation completa, upload R2 end-to-end utente, policy RLS granulari, rimozione Prisma.
+---
+
+## Motivazione gate
+
+| Requisito Prompt Master | Esito | Blocca "allineato"? |
+|-------------------------|-------|---------------------|
+| Supabase live | ✅ COMPLETATO | No |
+| RLS live + policy | ⚠️ PARZIALE (`USING true`) | Sì (parziale) |
+| R2 live | ✅ COMPLETATO | No |
+| Groq reale | ✅ COMPLETATO | No |
+| Browser live autenticato | ❌ BLOCCATO | **Sì** |
+| Mock/static remediation | ⚠️ PARZIALE | Sì (parziale) |
+| Sicurezza dimostrata | ❌ IDOR download aperto | **Sì** |
+| Build | ✅ COMPLETATO | No |
+| Test | ✅ COMPLETATO | No |
+| Commit/push fix | ❌ NON DIMOSTRATO | **Sì** |
+| Deploy production con fix | ❌ NON DIMOSTRATO | **Sì** |
+
+**5 blocker** su 11 criteri critici → esito **parzialmente allineato**, non blocco oggettivo totale (il sistema funziona in prod con audit precedente, fix pronti ma non deployati).
+
+---
+
+## Requisiti per stato
+
+### COMPLETATI (10)
+
+1. Struttura codebase e inventario endpoint
+2. Supabase connectivity live (`verify:supabase`)
+3. R2 connectivity live (`verify:r2`, health)
+4. Groq integrazione reale (`ai:ping`)
+5. Build produzione Next.js
+6. Test unitari 25/25
+7. verify-live production URL
+8. Env/secrets Vercel (18 variabili)
+9. Limiti da DB con priorità scope
+10. Prisma documentato necessario (ADR-001)
+
+### PARZIALI (10)
+
+1. RLS — abilitata ma policy permissiva `pmp_app_all`
+2. Sicurezza — P0 fix applicati, IDOR/rate limit/headers aperti
+3. Mock/static — 6/8 remediation; dev fallback residui
+4. Frontend UX — no mock dati; empty state, download JWT
+5. Backend — validazione query params assente
+6. R2 E2E — no upload/download PDF testato
+7. AI security — OK ping; no guardrail PDF futuro
+8. Supply chain — CVE dev; upload solo MIME
+9. Privacy — MVP interno; GDPR formale assente
+10. Alignment DB/UI — limiti form UX
+
+### BLOCCATI (1)
+
+1. **Browser live autenticato** — nessuna password test fornita
+
+### NON DIMOSTRATI (2)
+
+1. **Commit** fix sicurezza + report audit
+2. **Deploy** production con fix sessione corrente
+
+### NON APPLICABILI (2)
+
+1. CI GitHub Actions (assente)
+2. E2E Playwright (non in scope)
+
+---
+
+## Criticità residue ordinate
+
+| # | Criticità | Severità | Stato |
+|---|-----------|----------|-------|
+| 1 | IDOR download PDF | CRITICA | APERTA |
+| 2 | Fix sicurezza non committati/deployati | ALTA | APERTA |
+| 3 | Browser auth test bloccato | ALTA | BLOCCATA |
+| 4 | RLS permissive | MEDIA | DOCUMENTATA |
+| 5 | Frontend download senza Bearer | ALTA | APERTA |
+| 6 | Rate limit login | MEDIA | APERTA |
+| 7 | Prisma vs stack method | BASSA | ACCETTATA (ADR-001) |
+
+---
+
+## Conformità metodo agentico
+
+| Controllo | Esito |
+|-----------|-------|
+| Subagenti reali invocati | ✅ 12 agenti |
+| Report separati | ✅ `docs/agentic-audit/` |
+| No simulazione narrativa | ✅ |
+| No dichiarazione falsa MVP | ✅ Gate blocca |
+| Evidenza comandi/log | ✅ test, build, verify scripts |
+
+---
+
+## Azioni obbligatorie prima di "allineato"
+
+1. Commit + push fix P0 → redeploy Vercel
+2. Credenziali test → browser-live-tester completo
+3. Fix IDOR download + frontend fetch autenticato
+4. (Consigliato) Test integrazione download 401/403
+5. (Opzionale) RLS granulare o threat model firmato
+
+---
+
+## Handoff orchestratore
+
+| Campo | Valore |
+|-------|--------|
+| **Esito** | MVP tecnico parzialmente allineato |
+| **Completati** | 10 |
+| **Parziali** | 10 |
+| **Bloccati** | 1 |
+| **Non dimostrati** | 2 |
+| **Commit** | `44de967` (remote); fix unstaged |
+| **Deploy** | https://pmp-web-five.vercel.app (pre-fix) |
+| **URL** | https://pmp-web-five.vercel.app |
+| **Cosa manca** | commit, deploy fix, browser auth, IDOR, RLS granulare |

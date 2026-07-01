@@ -3,7 +3,8 @@
 **Data/ora setup:** 2026-07-01 11:34:05 +02:00  
 **Repository:** Plant Monitor Performance  
 **Prompt:** PROMPT 1 — Installazione squadra agentica reale Cursor  
-**Stato:** SETUP COMPLETATO
+**Prompt 2:** 2026-07-01 — Audit completo + fix P0 + compliance gate  
+**Stato:** SETUP COMPLETATO | **Prompt 2:** MVP tecnico parzialmente allineato
 
 ---
 
@@ -136,12 +137,26 @@ Non è ammesso che un singolo agente simuli tutti i ruoli narrativamente.
 
 ---
 
-## 9. Prossimo passo
+## 9. Prompt 2 — Esito (2026-07-01)
 
-**Puoi lanciare il Prompt 2.**
+| Controllo | Esito |
+|-----------|-------|
+| Subagenti reali invocati | ✅ 12 agenti |
+| Report separati in `docs/agentic-audit/` | ✅ Completi |
+| Test 25/25 + build | ✅ |
+| Live Supabase/R2/Groq/Vercel | ✅ |
+| Fix P0 sicurezza | ✅ Applicati (uncommitted) |
+| Browser live autenticato | ❌ BLOCCATO |
+| MVP tecnico allineato | ❌ — **parzialmente allineato** |
 
-L'orchestrator dovrà:
-1. Verificare che tutti i subagenti siano invocabili.
-2. Avviare audit paralleli con codebase-mapper, supabase-db-auditor, env-secrets-auditor.
-3. Produrre report separati in `docs/agentic-audit/`.
-4. Non dichiarare completamento senza evidenze concrete.
+**Report finali:** `19B_PROMPT_COMPLIANCE_MATRIX.md`, `23B_FINAL_COMPLIANCE_GATE.md`, `24_FINAL_DELIVERY_REPORT.md`
+
+---
+
+## 10. Prossimo passo (post Prompt 2)
+
+1. Commit + push fix sicurezza e report audit.
+2. Redeploy Vercel; re-run `verify-live.mjs`.
+3. Fornire credenziali test per `browser-live-tester`.
+4. Fix IDOR download PDF + frontend download autenticato.
+5. Non dichiarare MVP allineato finché blocker in `23B` non risolti.

@@ -7,8 +7,6 @@ import { api, type Customer, type Plant, type ChemicalParameter, type Measuremen
 import { ComplianceBadge, complianceRowClass } from "@/components/ComplianceBadge";
 import { PageHeader, LoadingState, ErrorState } from "@/components/ui";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
-
 function MeasurementsContent() {
   const searchParams = useSearchParams();
   const [sessions, setSessions] = useState<MeasurementSession[]>([]);
@@ -55,14 +53,25 @@ function MeasurementsContent() {
     load();
   }, [filters]);
 
-  const exportCsv = () => {
+  const exportCsv = async () => {
     const qs = new URLSearchParams();
     if (filters.customerId) qs.set("customerId", filters.customerId);
     if (filters.plantId) qs.set("plantId", filters.plantId);
     if (filters.parameterId) qs.set("parameterId", filters.parameterId);
     if (filters.from) qs.set("from", filters.from);
     if (filters.to) qs.set("to", filters.to);
-    window.open(`${API_URL}/api/measurement-sessions/export?${qs}`, "_blank");
+    try {
+      const csv = await api<string>(`/api/measurement-sessions/export?${qs}`);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "rilevazioni.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Export fallito");
+    }
   };
 
   const rows = sessions.flatMap((s) =>

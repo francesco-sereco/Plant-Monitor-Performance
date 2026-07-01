@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, type Document, type Customer, type Plant } from "@/lib/api";
+import { api, downloadApiFile, type Document, type Customer, type Plant } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { PageHeader, LoadingState, ErrorState } from "@/components/ui";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export default function DocumentsPage() {
   const { canWrite } = useAuth();
@@ -43,16 +41,7 @@ export default function DocumentsPage() {
     if (upload.plantId) formData.append("plantId", upload.plantId);
 
     try {
-      const token = localStorage.getItem("pmp_token");
-      const res = await fetch(`${API_URL}/api/documents/upload`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      });
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.error ?? "Upload fallito");
-      }
+      await api("/api/documents/upload", { method: "POST", body: formData });
       setUpload({ customerId: "", plantId: "", file: null });
       load();
     } catch (err) {
@@ -60,10 +49,22 @@ export default function DocumentsPage() {
     }
   };
 
+  const [downloadError, setDownloadError] = useState("");
+
+  const handleDownload = async (doc: Document) => {
+    setDownloadError("");
+    try {
+      await downloadApiFile(`/api/documents/${doc.id}/download`, doc.originalFilename);
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : "Download fallito");
+    }
+  };
+
   return (
     <div>
       <PageHeader title="Documenti PDF" subtitle="Allegati rapportini e autocontrolli (storage privato)" />
       {error && <ErrorState message={error} />}
+      {downloadError && <ErrorState message={downloadError} />}
 
       {canWrite && (
         <form onSubmit={handleUpload} className="card mb-6 grid gap-4 md:grid-cols-4">
@@ -115,9 +116,13 @@ export default function DocumentsPage() {
                   <td>{Math.round(d.fileSize / 1024)} KB</td>
                   <td>{new Date(d.uploadedAt).toLocaleDateString("it-IT")}</td>
                   <td>
-                    <a href={`${API_URL}/api/documents/${d.id}/download`} className="text-brand-600 hover:underline" target="_blank" rel="noreferrer">
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(d)}
+                      className="text-brand-600 hover:underline"
+                    >
                       Download
-                    </a>
+                    </button>
                   </td>
                 </tr>
               ))}
