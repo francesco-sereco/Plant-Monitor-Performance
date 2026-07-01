@@ -7,7 +7,7 @@ import { paramId } from "../../lib/params.js";
 import { asyncHandler } from "../../middleware/error-handler.js";
 import { requireWriteAccess } from "../../middleware/auth.js";
 import { writeAuditLog } from "../audit/audit.service.js";
-import { confirmPdfImport, createPdfImport } from "./import.service.js";
+import { confirmPdfImport, createPdfImport, updateImportPreview } from "./import.service.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -35,10 +35,36 @@ const uploadBodySchema = z.object({
   plantId: z.string().optional(),
 });
 
-const confirmSchema = z.object({
-  customerId: z.string().min(1),
-  plantId: z.string().min(1),
+const importParameterSchema = z.object({
+  code: z.string().optional(),
+  name: z.string().optional(),
+  value: z.union([z.number(), z.string()]),
+  unit: z.string().optional(),
+  samplingPoint: z.string().optional(),
+  chemicalParameterId: z.string().optional(),
+  unitId: z.string().optional(),
+  samplingPointId: z.string().optional(),
+  mapped: z.boolean().optional(),
+  autoCreated: z.boolean().optional(),
+  included: z.boolean().optional(),
+});
+
+const confirmSchema = z
+  .object({
+    customerId: z.string().min(1),
+    plantId: z.string().optional(),
+    measurementDate: z.string().optional(),
+    createPlant: z.object({ plantTypeId: z.string().min(1), name: z.string().min(1) }).optional(),
+    parameters: z.array(importParameterSchema).optional(),
+  })
+  .refine((data) => Boolean(data.plantId || data.createPlant?.name), {
+    message: "Seleziona un impianto o indicane uno nuovo",
+  });
+
+const previewPatchSchema = z.object({
+  customerId: z.string().optional(),
   measurementDate: z.string().optional(),
+  parameters: z.array(importParameterSchema).optional(),
 });
 
 export const importsRouter = Router();
@@ -115,6 +141,8 @@ importsRouter.post(
         customerId: data.customerId,
         plantId: data.plantId,
         measurementDate: data.measurementDate,
+        createPlant: data.createPlant,
+        parameters: data.parameters,
         createdById: req.user?.id,
       });
 
@@ -129,6 +157,21 @@ importsRouter.post(
       res.json(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Conferma import fallita";
+      return res.status(400).json({ error: message });
+    }
+  })
+);
+
+importsRouter.patch(
+  "/:id/preview",
+  requireWriteAccess,
+  asyncHandler(async (req, res) => {
+    const data = previewPatchSchema.parse(req.body);
+    try {
+      const job = await updateImportPreview(paramId(req.params.id), data);
+      res.json(job);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Salvataggio anteprima fallito";
       return res.status(400).json({ error: message });
     }
   })

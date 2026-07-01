@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, type Customer, type Sector, type Plant, type PlantType, type PdfImportJob } from "@/lib/api";
+import { api, type Customer, type Sector, type Plant, type PlantType, type PdfImportJob, type ImportPreviewParameter, type ChemicalParameter, type SamplingPoint } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { PageHeader, LoadingState, ErrorState } from "@/components/ui";
@@ -50,6 +50,12 @@ export default function CustomersPage() {
     plantId: "",
     measurementDate: "",
   });
+  const [confirmParameters, setConfirmParameters] = useState<ImportPreviewParameter[]>([]);
+  const [confirmPlantMode, setConfirmPlantMode] = useState<"existing" | "new">("existing");
+  const [confirmNewPlant, setConfirmNewPlant] = useState({ name: "", plantTypeId: "" });
+  const [chemicalParameters, setChemicalParameters] = useState<ChemicalParameter[]>([]);
+  const [samplingPoints, setSamplingPoints] = useState<SamplingPoint[]>([]);
+  const [savingPreview, setSavingPreview] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -59,13 +65,17 @@ export default function CustomersPage() {
       api<Plant[]>("/api/plants"),
       api<PlantType[]>("/api/plant-types"),
       api<PdfImportJob[]>("/api/imports"),
+      api<ChemicalParameter[]>("/api/chemical-parameters"),
+      api<SamplingPoint[]>("/api/sampling-points"),
     ])
-      .then(([c, s, p, t, jobs]) => {
+      .then(([c, s, p, t, jobs, params, points]) => {
         setCustomers(c);
         setSectors(s);
         setPlants(p);
         setPlantTypes(t);
         setImportJobs(jobs);
+        setChemicalParameters(params);
+        setSamplingPoints(points);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -141,37 +151,127 @@ export default function CustomersPage() {
   };
 
   const openConfirmImport = (job: PdfImportJob) => {
+    const customerId = job.document.customer?.id ?? importForm.customerId ?? "";
+    const customerPlants = plants.filter((p) => p.customerId === customerId);
     setConfirmingJobId(job.id);
     setConfirmForm({
-      customerId: job.document.customer?.id ?? importForm.customerId ?? "",
-      plantId: job.document.plant?.id ?? "",
+      customerId,
+      plantId: job.document.plant?.id ?? customerPlants[0]?.id ?? "",
       measurementDate: job.structuredOutputJson?.measurementDate ?? "",
     });
+    setConfirmParameters(
+      (job.structuredOutputJson?.parameters ?? []).map((p) => ({
+        ...p,
+        included: p.included !== false,
+      }))
+    );
+    setConfirmPlantMode(customerPlants.length > 0 ? "existing" : "new");
+    setConfirmNewPlant({
+      name: job.structuredOutputJson?.plantName ?? "Impianto 1",
+      plantTypeId: plantTypes[0]?.id ?? "",
+    });
     setError("");
+  };
+
+  const buildConfirmPayload = () => ({
+    customerId: confirmForm.customerId,
+    measurementDate: confirmForm.measurementDate || undefined,
+    parameters: confirmParameters,
+    ...(confirmPlantMode === "existing" && confirmForm.plantId
+      ? { plantId: confirmForm.plantId }
+      : {
+          createPlant: {
+            name: confirmNewPlant.name.trim(),
+            plantTypeId: confirmNewPlant.plantTypeId,
+          },
+        }),
+  });
+
+  const handleSaveImportPreview = async () => {
+    if (!confirmingJobId) return;
+    if (!confirmForm.customerId) {
+      setError("Seleziona un cliente");
+      return;
+    }
+    try {
+      setError("");
+      setSavingPreview(true);
+      const updated = await api<PdfImportJob>(`/api/imports/${confirmingJobId}/preview`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          customerId: confirmForm.customerId,
+          measurementDate: confirmForm.measurementDate || undefined,
+          parameters: confirmParameters,
+        }),
+      });
+      setConfirmParameters(
+        (updated.structuredOutputJson?.parameters ?? confirmParameters).map((p) => ({
+          ...p,
+          included: p.included !== false,
+        }))
+      );
+      setImportJobs((jobs) => jobs.map((j) => (j.id === updated.id ? updated : j)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Errore salvataggio");
+    } finally {
+      setSavingPreview(false);
+    }
   };
 
   const handleConfirmImport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!confirmingJobId) return;
-    if (!confirmForm.customerId || !confirmForm.plantId) {
-      setError("Seleziona cliente e impianto per confermare l'import");
+    if (!confirmForm.customerId) {
+      setError("Seleziona un cliente per confermare l'import");
+      return;
+    }
+    if (confirmPlantMode === "existing" && !confirmForm.plantId) {
+      setError("Seleziona un impianto o creane uno nuovo");
+      return;
+    }
+    if (confirmPlantMode === "new") {
+      if (!confirmNewPlant.name.trim()) {
+        setError("Inserisci il nome del nuovo impianto");
+        return;
+      }
+      if (!confirmNewPlant.plantTypeId) {
+        setError("Seleziona la tipologia del nuovo impianto");
+        return;
+      }
+    }
+    const included = confirmParameters.filter((p) => p.included !== false);
+    if (included.length === 0) {
+      setError("Seleziona almeno un parametro da importare");
       return;
     }
     try {
       setError("");
       await api(`/api/imports/${confirmingJobId}/confirm`, {
         method: "POST",
-        body: JSON.stringify({
-          customerId: confirmForm.customerId,
-          plantId: confirmForm.plantId,
-          measurementDate: confirmForm.measurementDate || undefined,
-        }),
+        body: JSON.stringify(buildConfirmPayload()),
       });
       setConfirmingJobId(null);
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Errore conferma import");
     }
+  };
+
+  const updateConfirmParameter = (index: number, patch: Partial<ImportPreviewParameter>) => {
+    setConfirmParameters((rows) =>
+      rows.map((row, i) => {
+        if (i !== index) return row;
+        const next = { ...row, ...patch };
+        if (patch.chemicalParameterId) {
+          const param = chemicalParameters.find((p) => p.id === patch.chemicalParameterId);
+          next.code = param?.code ?? next.code;
+          next.name = param?.name ?? next.name;
+          next.unitId = param?.defaultUnitId ?? next.unitId;
+          next.unit = param?.defaultUnit?.symbol ?? next.unit;
+        }
+        return next;
+      })
+    );
   };
 
   const handleDiscardImport = async (jobId: string) => {
@@ -457,9 +557,16 @@ export default function CustomersPage() {
                   className="input"
                   required
                   value={confirmForm.customerId}
-                  onChange={(e) =>
-                    setConfirmForm({ ...confirmForm, customerId: e.target.value, plantId: "" })
-                  }
+                  onChange={(e) => {
+                    const customerId = e.target.value;
+                    const customerPlants = plants.filter((p) => p.customerId === customerId);
+                    setConfirmForm({
+                      ...confirmForm,
+                      customerId,
+                      plantId: customerPlants[0]?.id ?? "",
+                    });
+                    if (customerPlants.length === 0) setConfirmPlantMode("new");
+                  }}
                 >
                   <option value="">Seleziona...</option>
                   {customers.map((c) => (
@@ -469,22 +576,68 @@ export default function CustomersPage() {
                   ))}
                 </select>
               </div>
-              <div>
+              <div className="md:col-span-2">
                 <label className="label">Impianto</label>
-                <select
-                  className="input"
-                  required
-                  value={confirmForm.plantId}
-                  disabled={!confirmForm.customerId}
-                  onChange={(e) => setConfirmForm({ ...confirmForm, plantId: e.target.value })}
-                >
-                  <option value="">Seleziona...</option>
-                  {plantsForCustomer(confirmForm.customerId).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
+                <div className="mb-2 flex flex-wrap gap-4 text-sm">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      checked={confirmPlantMode === "existing"}
+                      onChange={() => setConfirmPlantMode("existing")}
+                    />
+                    Esistente
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      checked={confirmPlantMode === "new"}
+                      onChange={() => setConfirmPlantMode("new")}
+                    />
+                    Crea nuovo
+                  </label>
+                </div>
+                {confirmPlantMode === "existing" ? (
+                  <select
+                    className="input"
+                    value={confirmForm.plantId}
+                    disabled={!confirmForm.customerId}
+                    onChange={(e) => setConfirmForm({ ...confirmForm, plantId: e.target.value })}
+                  >
+                    <option value="">
+                      {plantsForCustomer(confirmForm.customerId).length
+                        ? "Seleziona impianto..."
+                        : "Nessun impianto — usa Crea nuovo"}
                     </option>
-                  ))}
-                </select>
+                    {plantsForCustomer(confirmForm.customerId).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <input
+                      className="input"
+                      placeholder="Nome impianto"
+                      value={confirmNewPlant.name}
+                      onChange={(e) => setConfirmNewPlant({ ...confirmNewPlant, name: e.target.value })}
+                    />
+                    <select
+                      className="input"
+                      value={confirmNewPlant.plantTypeId}
+                      onChange={(e) =>
+                        setConfirmNewPlant({ ...confirmNewPlant, plantTypeId: e.target.value })
+                      }
+                    >
+                      <option value="">Tipologia...</option>
+                      {plantTypes.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="label">Data rilevazione</label>
@@ -496,31 +649,92 @@ export default function CustomersPage() {
                 />
               </div>
             </div>
-            {preview?.parameters && preview.parameters.length > 0 && (
+            {confirmParameters.length > 0 && (
               <div className="table-wrap">
+                <p className="mb-2 text-sm text-slate-600">
+                  Modifica valori, parametri e punti di campionamento prima di confermare.
+                </p>
                 <table className="data-table">
                   <thead>
                     <tr>
+                      <th>Incl.</th>
                       <th>Parametro</th>
                       <th>Valore</th>
-                      <th>Punto</th>
+                      <th>Punto campionamento</th>
                       <th>Stato</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {preview.parameters.map((row, idx) => (
-                      <tr key={`${row.code ?? row.name ?? idx}`}>
-                        <td>{row.code ?? row.name ?? "—"}</td>
+                    {confirmParameters.map((row, idx) => (
+                      <tr key={`${row.code ?? row.name ?? idx}-${idx}`}>
                         <td>
-                          {row.value} {row.unit ?? ""}
+                          <input
+                            type="checkbox"
+                            checked={row.included !== false}
+                            onChange={(e) =>
+                              updateConfirmParameter(idx, { included: e.target.checked })
+                            }
+                          />
                         </td>
-                        <td>{row.samplingPoint ?? "—"}</td>
                         <td>
-                          {row.mapped
+                          <select
+                            className="input min-w-[10rem]"
+                            value={row.chemicalParameterId ?? ""}
+                            onChange={(e) =>
+                              updateConfirmParameter(idx, {
+                                chemicalParameterId: e.target.value || undefined,
+                              })
+                            }
+                          >
+                            <option value="">Seleziona...</option>
+                            {chemicalParameters.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.code} — {p.name}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <input
+                            className="input w-28"
+                            value={String(row.value)}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const num = Number(raw.replace(",", "."));
+                              updateConfirmParameter(idx, {
+                                value: Number.isFinite(num) && raw.trim() !== "" ? num : raw,
+                              });
+                            }}
+                          />
+                          <span className="ml-1 text-sm text-slate-500">{row.unit ?? ""}</span>
+                        </td>
+                        <td>
+                          <select
+                            className="input min-w-[10rem]"
+                            value={row.samplingPointId ?? ""}
+                            onChange={(e) =>
+                              updateConfirmParameter(idx, {
+                                samplingPointId: e.target.value || undefined,
+                                samplingPoint:
+                                  samplingPoints.find((sp) => sp.id === e.target.value)?.name ??
+                                  row.samplingPoint,
+                              })
+                            }
+                          >
+                            <option value="">Seleziona...</option>
+                            {samplingPoints.map((sp) => (
+                              <option key={sp.id} value={sp.id}>
+                                {sp.name}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          {row.chemicalParameterId && row.samplingPointId
                             ? row.autoCreated
                               ? "Aggiunto automaticamente"
-                              : "Mappato"
-                            : "Da verificare"}
+                              : "Pronto"
+                            : "Completa selezione"}
                         </td>
                       </tr>
                     ))}
@@ -529,6 +743,9 @@ export default function CustomersPage() {
               </div>
             )}
             <div className="flex flex-wrap gap-3">
+              <button type="button" className="btn-secondary" onClick={handleSaveImportPreview} disabled={savingPreview}>
+                {savingPreview ? "Salvataggio..." : "Salva modifiche"}
+              </button>
               <button type="submit" className="btn-primary">
                 Conferma e crea rilevazione
               </button>

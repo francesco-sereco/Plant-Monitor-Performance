@@ -184,6 +184,27 @@ export async function enrichImportPreview(
   const enrichedParams: ImportPreviewParameter[] = [];
 
   for (const row of preview.parameters) {
+    if (row.included === false) continue;
+
+    if (row.chemicalParameterId && row.samplingPointId) {
+      const param = parameters.find((p) => p.id === row.chemicalParameterId);
+      let unitId = row.unitId ?? param?.defaultUnitId ?? undefined;
+      if (!unitId && row.unit && autoCreate) {
+        unitId = (await ensureUnit(row.unit)).id;
+      }
+      const pointOk = samplingPoints.some((sp) => sp.id === row.samplingPointId);
+      if (param && pointOk && unitId) {
+        enrichedParams.push({
+          ...row,
+          code: row.code ?? param.code,
+          name: row.name ?? param.name,
+          unitId,
+          mapped: true,
+        });
+        continue;
+      }
+    }
+
     const codeKey = row.code ? normalizeKey(row.code) : "";
     const nameKey = row.name ? normalizeKey(row.name) : "";
     const match =
@@ -461,13 +482,55 @@ export async function createPdfImport(params: {
   return job;
 }
 
+export async function updateImportPreview(
+  jobId: string,
+  updates: {
+    customerId?: string;
+    measurementDate?: string;
+    parameters?: ImportPreviewParameter[];
+  }
+) {
+  const job = await prisma.pdfImportJob.findUnique({
+    where: { id: jobId },
+    include: { document: true },
+  });
+  if (!job) throw new Error("Import non trovato");
+  if (job.status === "confirmed") throw new Error("Import già confermato");
+  if (job.status === "discarded") throw new Error("Import scartato");
+
+  const current = (job.structuredOutputJson as ImportPreview | null) ?? { parameters: [], warnings: [] };
+  const preview: ImportPreview = {
+    ...current,
+    ...(updates.measurementDate ? { measurementDate: updates.measurementDate } : {}),
+    ...(updates.parameters ? { parameters: updates.parameters } : {}),
+  };
+
+  if (updates.customerId) {
+    const customer = await prisma.customer.findFirst({
+      where: { id: updates.customerId, deletedAt: null },
+    });
+    if (!customer) throw new Error("Cliente non trovato");
+    await prisma.document.update({
+      where: { id: job.documentId },
+      data: { customerId: updates.customerId },
+    });
+  }
+
+  return prisma.pdfImportJob.update({
+    where: { id: jobId },
+    data: { structuredOutputJson: preview as object, status: "needs_review" },
+    include: { document: { include: { customer: true, plant: true } } },
+  });
+}
+
 export async function confirmPdfImport(params: {
   jobId: string;
   customerId: string;
-  plantId: string;
+  plantId?: string;
   measurementDate?: string;
   createdById?: string;
   createPlant?: { plantTypeId: string; name: string };
+  parameters?: ImportPreviewParameter[];
 }) {
   const job = await prisma.pdfImportJob.findUnique({
     where: { id: params.jobId },
@@ -477,30 +540,45 @@ export async function confirmPdfImport(params: {
   if (job.status === "confirmed") throw new Error("Import già confermato");
   if (job.status === "discarded") throw new Error("Import scartato");
 
-  const preview = job.structuredOutputJson as ImportPreview | null;
-  if (!preview?.parameters?.length) {
+  const basePreview = job.structuredOutputJson as ImportPreview | null;
+  if (!basePreview?.parameters?.length && !params.parameters?.length) {
     throw new Error("Nessun parametro da importare nell'anteprima");
+  }
+
+  const preview: ImportPreview = {
+    ...basePreview,
+    warnings: basePreview?.warnings ?? [],
+    parameters: (params.parameters ?? basePreview?.parameters ?? []).filter((p) => p.included !== false),
+    ...(params.measurementDate ? { measurementDate: params.measurementDate } : {}),
+  };
+
+  if (preview.parameters.length === 0) {
+    throw new Error("Seleziona almeno un parametro da importare");
   }
 
   const enrichedPreview = await enrichImportPreview(preview, { autoCreateMissing: true });
 
-  let plant = await prisma.plant.findFirst({
-    where: { id: params.plantId, customerId: params.customerId, deletedAt: null },
-    include: { customer: true },
-  });
+  let plant = params.plantId
+    ? await prisma.plant.findFirst({
+        where: { id: params.plantId, customerId: params.customerId, deletedAt: null },
+        include: { customer: true },
+      })
+    : null;
 
-  if (!plant && params.createPlant) {
+  if (!plant && params.createPlant?.name && params.createPlant.plantTypeId) {
     plant = await prisma.plant.create({
       data: {
         customerId: params.customerId,
         plantTypeId: params.createPlant.plantTypeId,
-        name: params.createPlant.name,
+        name: params.createPlant.name.trim(),
       },
       include: { customer: true },
     });
   }
 
-  if (!plant) throw new Error("Impianto non valido per il cliente selezionato");
+  if (!plant) {
+    throw new Error("Seleziona un impianto esistente o creane uno nuovo per confermare l'import");
+  }
 
   const mapped = enrichedPreview.parameters.filter(
     (p) => p.mapped && p.chemicalParameterId && p.unitId && p.samplingPointId

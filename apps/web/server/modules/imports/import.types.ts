@@ -11,6 +11,7 @@ export type ImportPreviewParameter = {
   samplingPointId?: string;
   mapped?: boolean;
   autoCreated?: boolean;
+  included?: boolean;
 };
 
 export type ImportPreview = {
