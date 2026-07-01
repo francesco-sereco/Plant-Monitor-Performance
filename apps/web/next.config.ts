@@ -9,15 +9,16 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   async rewrites() {
+    const rewrites = [{ source: "/favicon.ico", destination: "/icon" }];
+
     if (process.env.NODE_ENV === "development") {
-      return [
-        {
-          source: "/api/:path*",
-          destination: "http://localhost:4000/api/:path*",
-        },
-      ];
+      rewrites.push({
+        source: "/api/:path*",
+        destination: "http://localhost:4000/api/:path*",
+      });
     }
-    return [];
+
+    return rewrites;
   },
 };
 
