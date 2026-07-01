@@ -70,6 +70,10 @@ customersRouter.post(
   requireWriteAccess,
   asyncHandler(async (req, res) => {
     const data = customerSchema.parse(req.body);
+    const sector = await prisma.sector.findUnique({ where: { id: data.sectorId } });
+    if (!sector) {
+      return res.status(400).json({ error: "Settore non trovato: seleziona un settore dall'elenco" });
+    }
     const customer = await prisma.customer.create({
       data: {
         ...data,
@@ -86,6 +90,12 @@ customersRouter.patch(
   requireWriteAccess,
   asyncHandler(async (req, res) => {
     const data = customerSchema.partial().parse(req.body);
+    if (data.sectorId) {
+      const sector = await prisma.sector.findUnique({ where: { id: data.sectorId } });
+      if (!sector) {
+        return res.status(400).json({ error: "Settore non trovato: seleziona un settore dall'elenco" });
+      }
+    }
     const customer = await prisma.customer.update({
       where: { id: paramId(req.params.id) },
       data: { ...data, contactEmail: data.contactEmail || undefined },
