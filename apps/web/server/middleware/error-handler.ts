@@ -26,6 +26,10 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return res.status(403).json({ error: err.message });
   }
 
+  if (err instanceof Error && /file troppo grande|PDF consentiti|Unexpected field/i.test(err.message)) {
+    return res.status(400).json({ error: err.message });
+  }
+
   const prismaCode = getPrismaErrorCode(err);
   if (prismaCode === "P2002") {
     return res.status(409).json({ error: "Record duplicato" });

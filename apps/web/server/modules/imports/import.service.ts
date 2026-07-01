@@ -8,6 +8,7 @@ import { groqChatCompletion } from "../ai/groq.client.js";
 import { resolveLimit, calculateCompliance } from "../limits/resolve-limit.js";
 import { decimalToNumber } from "../../lib/prisma.js";
 import type { ImportDocumentType, ImportPreview, ImportPreviewParameter } from "./import.types.js";
+import { buildFallbackPreviewFromText, mergePreview } from "./import.fallback.js";
 
 const DOCUMENT_TYPE_LABEL: Record<ImportDocumentType, string> = {
   takeoff_report: "rapportino di asporto",
@@ -237,9 +238,17 @@ function slugCodeFromName(name: string): string {
   return base || "CLI";
 }
 
+async function resolveCustomerFromText(text: string): Promise<string | null> {
+  const customers = await prisma.customer.findMany({ where: { deletedAt: null } });
+  const normalizedText = normalizeKey(text);
+  const match = customers.find((c) => normalizedText.includes(normalizeKey(c.businessName)));
+  return match?.id ?? null;
+}
+
 async function ensureCustomerFromPreview(
   preview: ImportPreview,
-  explicitCustomerId?: string
+  explicitCustomerId?: string,
+  extractedText?: string
 ): Promise<{ customerId: string; created: boolean }> {
   const existing = await resolveCustomerId(explicitCustomerId, preview);
   if (existing) {
@@ -247,8 +256,25 @@ async function ensureCustomerFromPreview(
     return { customerId: existing, created: false };
   }
 
+  if (!preview.customerName && extractedText) {
+    const fromText = await resolveCustomerFromText(extractedText);
+    if (fromText) {
+      preview.customerExists = true;
+      preview.warnings.push("Cliente associato automaticamente dal testo del PDF");
+      return { customerId: fromText, created: false };
+    }
+    const fallback = buildFallbackPreviewFromText(extractedText);
+    Object.assign(preview, mergePreview(preview, fallback));
+  }
+
+  const retryExisting = await resolveCustomerId(undefined, preview);
+  if (retryExisting) {
+    preview.customerExists = true;
+    return { customerId: retryExisting, created: false };
+  }
+
   if (!preview.customerName) {
-    throw new Error("Cliente non trovato nel PDF: seleziona un cliente manualmente");
+    throw new Error("Cliente non trovato nel PDF: seleziona un cliente dal menu prima di caricare");
   }
 
   const sector = await prisma.sector.findFirst({ where: { active: true }, orderBy: { name: "asc" } });
@@ -319,24 +345,41 @@ export async function createPdfImport(params: {
       status = "needs_review";
     } catch (err) {
       errorMessage = err instanceof Error ? err.message : "Estrazione fallita";
-      preview.warnings.push(errorMessage);
-      status = "failed";
+      const fallback = buildFallbackPreviewFromText(extractedText);
+      preview = mergePreview(preview, fallback);
+      if (preview.parameters.length > 0 || preview.customerName) {
+        preview = await enrichImportPreview(preview);
+        parserType = "fallback-regex";
+        status = "needs_review";
+        preview.warnings.push(`AI: ${errorMessage}`);
+      } else {
+        preview.warnings.push(errorMessage);
+        status = "failed";
+      }
     }
   }
 
-  const { customerId: resolvedCustomerId } = await ensureCustomerFromPreview(preview, params.customerId);
+  const { customerId: resolvedCustomerId } = await ensureCustomerFromPreview(
+    preview,
+    params.customerId,
+    extractedText
+  );
 
+  let resolvedPlantId = params.plantId;
   if (params.plantId) {
     const plant = await prisma.plant.findFirst({
       where: { id: params.plantId, customerId: resolvedCustomerId, deletedAt: null },
     });
-    if (!plant) throw new Error("Impianto non valido per il cliente indicato");
+    if (!plant) {
+      preview.warnings.push("Impianto selezionato non valido: scegline uno in conferma");
+      resolvedPlantId = undefined;
+    }
   }
 
   const document = await prisma.document.create({
     data: {
       customerId: resolvedCustomerId,
-      plantId: params.plantId ?? null,
+      plantId: resolvedPlantId ?? null,
       documentType: params.documentType,
       originalFilename: params.originalFilename,
       storedFilename: stored.storedFilename,

@@ -13,7 +13,15 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: config.maxPdfSizeMb * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype !== "application/pdf") {
+    const mime = file.mimetype?.toLowerCase() ?? "";
+    const name = file.originalname?.toLowerCase() ?? "";
+    const okMime =
+      mime === "application/pdf" ||
+      mime === "application/octet-stream" ||
+      mime === "binary/octet-stream" ||
+      mime === "";
+    const okExt = name.endsWith(".pdf");
+    if (!okMime && !okExt) {
       cb(new Error("Solo file PDF consentiti"));
       return;
     }
