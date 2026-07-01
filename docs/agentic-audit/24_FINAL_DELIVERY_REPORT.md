@@ -30,13 +30,14 @@ orchestrator (parent), codebase-mapper, backend-api-auditor, frontend-ux-auditor
 - verify:supabase, verify:r2, ai:ping OK
 - Live: health, login, customers, ai ping OK
 
-## Deploy (pre-push)
+## Deploy
 
 | Campo | Valore |
 |-------|--------|
 | URL | https://pmp-web-five.vercel.app |
-| Deploy ID (pre-fix) | dpl_E7PWbvhJc5aAkWYxkmb9ksvLxA7H |
-| Commit (pre-fix) | 44de967 |
+| Deploy ID | dpl_6zVyVtk2vveqZA1f5nn7znwd3xbP |
+| Commit | c40f3b1de1a15b467225e7d70f004687444f84e2 |
+| Stato | READY (post-push verify-live OK) |
 
 ## Blocker residui
 
