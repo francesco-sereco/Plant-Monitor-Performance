@@ -14,6 +14,13 @@ const DOCUMENT_TYPE_LABEL: Record<ImportDocumentType, string> = {
   lab_autocontrol: "autocontrollo di laboratorio",
 };
 
+function sanitizeTextForDb(text: string): string {
+  return text
+    .replace(/\0/g, "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, "")
+    .trim();
+}
+
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -293,7 +300,7 @@ export async function createPdfImport(params: {
     mimeType: params.mimeType,
   });
 
-  const extractedText = await extractPdfText(params.buffer);
+  const extractedText = sanitizeTextForDb(await extractPdfText(params.buffer));
   let preview: ImportPreview = { parameters: [], warnings: [] };
   let status: "uploaded" | "needs_review" | "failed" = "uploaded";
   let errorMessage: string | undefined;
