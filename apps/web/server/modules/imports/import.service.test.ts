@@ -7,9 +7,10 @@ describe("pdf-text", () => {
     expect(isPdfBuffer(Buffer.from("NOTPDF"))).toBe(false);
   });
 
-  it("estrae testo tra parentesi nel buffer PDF", () => {
+  it("estrae testo tra parentesi nel buffer PDF legacy", async () => {
     const fakePdf = Buffer.from('%PDF-1.4\nBT (Cliente ACME) Tj (COD 120 mg/L) ET');
-    expect(extractPdfText(fakePdf)).toContain("Cliente ACME");
-    expect(extractPdfText(fakePdf)).toContain("COD 120 mg/L");
+    const text = await extractPdfText(fakePdf);
+    expect(text).toContain("Cliente ACME");
+    expect(text).toContain("COD 120 mg/L");
   });
 });

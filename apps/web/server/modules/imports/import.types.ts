@@ -14,6 +14,10 @@ export type ImportPreviewParameter = {
 
 export type ImportPreview = {
   customerName?: string;
+  customerCity?: string;
+  customerAddress?: string;
+  customerReference?: string;
+  customerExists?: boolean;
   plantName?: string;
   measurementDate?: string;
   technicianName?: string;
