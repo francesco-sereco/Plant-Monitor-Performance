@@ -159,3 +159,32 @@ export type Document = {
   plant?: Plant;
   documentType: string;
 };
+export type ImportPreviewParameter = {
+  code?: string;
+  name?: string;
+  value: number | string;
+  unit?: string;
+  samplingPoint?: string;
+  chemicalParameterId?: string;
+  unitId?: string;
+  samplingPointId?: string;
+  mapped?: boolean;
+};
+export type ImportPreview = {
+  customerName?: string;
+  plantName?: string;
+  measurementDate?: string;
+  technicianName?: string;
+  laboratoryName?: string;
+  parameters: ImportPreviewParameter[];
+  warnings: string[];
+};
+export type PdfImportJob = {
+  id: string;
+  status: string;
+  parserType?: string;
+  structuredOutputJson?: ImportPreview;
+  errorMessage?: string;
+  createdAt: string;
+  document: Document & { customer?: Customer; plant?: Plant };
+};

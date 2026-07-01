@@ -27,6 +27,7 @@ import {
 } from "./modules/measurements/measurements.routes.js";
 import { analyticsRouter } from "./modules/analytics/analytics.routes.js";
 import { documentsRouter } from "./modules/documents/documents.routes.js";
+import { importsRouter } from "./modules/imports/imports.routes.js";
 import { cronRouter } from "./modules/system-checks/cron.routes.js";
 import { aiRouter } from "./modules/ai/ai.routes.js";
 
@@ -124,6 +125,7 @@ app.use("/api/measurement-sessions", measurementSessionsRouter);
 app.use("/api/measurements", measurementsRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/documents", documentsRouter);
+app.use("/api/imports", importsRouter);
 
 app.use(errorHandler);
 

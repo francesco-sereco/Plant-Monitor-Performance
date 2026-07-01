@@ -47,6 +47,7 @@ export async function groqChatCompletion(params: {
   model: string;
   userMessage: string;
   timeoutMs?: number;
+  maxTokens?: number;
   fetchFn?: typeof fetch;
 }): Promise<GroqChatResult> {
   const fetchImpl = params.fetchFn ?? fetch;
@@ -65,7 +66,7 @@ export async function groqChatCompletion(params: {
         model: params.model,
         messages: [{ role: "user", content: params.userMessage }],
         temperature: 0.2,
-        max_tokens: 256,
+        max_tokens: params.maxTokens ?? 256,
       }),
       signal: controller.signal,
     });
