@@ -7,16 +7,28 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootEnvPath = path.resolve(__dirname, "../../../../.env");
 dotenv.config({ path: rootEnvPath });
 
-const SUPABASE_PROJECT_REF = "kctqmywrtxekvwiynfla";
-const SUPABASE_REGION = "eu-west-1";
+function resolveSupabaseProjectRef(): string | undefined {
+  if (process.env.SUPABASE_PROJECT_REF) return process.env.SUPABASE_PROJECT_REF;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return undefined;
+  const match = url.match(/https:\/\/([^.]+)\.supabase\.co/);
+  return match?.[1];
+}
+
+function resolveSupabaseRegion(): string {
+  return process.env.SUPABASE_REGION ?? "eu-west-1";
+}
 
 /** Costruisce DATABASE_URL da SUPABASE_DB_PASSWORD se DATABASE_URL non è impostata. */
 function ensureDatabaseUrl(): void {
   if (process.env.DATABASE_URL) return;
   const password = process.env.SUPABASE_DB_PASSWORD;
   if (!password) return;
+  const projectRef = resolveSupabaseProjectRef();
+  if (!projectRef) return;
   const encoded = encodeURIComponent(password);
-  process.env.DATABASE_URL = `postgresql://postgres.${SUPABASE_PROJECT_REF}:${encoded}@aws-0-${SUPABASE_REGION}.pooler.supabase.com:5432/postgres`;
+  const region = resolveSupabaseRegion();
+  process.env.DATABASE_URL = `postgresql://postgres.${projectRef}:${encoded}@aws-0-${region}.pooler.supabase.com:5432/postgres`;
 }
 
 /**
@@ -95,5 +107,47 @@ export function assertGroqConfig(): void {
     console.warn(
       "[PMP] GROQ_API_KEY non impostata: endpoint /api/ai/* non disponibili finché non configurata."
     );
+  }
+}
+
+const DEV_JWT_FALLBACK = "dev-secret-change-me";
+
+export function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  const isProduction = process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
+  if (isProduction) {
+    if (!secret || secret.length < 32) {
+      throw new Error("JWT_SECRET obbligatorio in produzione (minimo 32 caratteri)");
+    }
+    if (secret === DEV_JWT_FALLBACK) {
+      throw new Error("JWT_SECRET non può usare il valore di sviluppo in produzione");
+    }
+    return secret;
+  }
+  return secret ?? DEV_JWT_FALLBACK;
+}
+
+/** Fail-fast su deploy Vercel: auth, JWT e storage R2 obbligatori. */
+export function assertProductionConfig(): void {
+  if (process.env.VERCEL !== "1") return;
+
+  if (process.env.AUTH_ENABLED !== "true") {
+    throw new Error("AUTH_ENABLED deve essere true su Vercel");
+  }
+
+  getJwtSecret();
+
+  const backend = process.env.STORAGE_BACKEND?.toLowerCase();
+  const hasR2 =
+    process.env.R2_ACCOUNT_ID &&
+    process.env.R2_ACCESS_KEY_ID &&
+    process.env.R2_SECRET_ACCESS_KEY &&
+    process.env.R2_BUCKET_NAME;
+  if (backend !== "r2" && !hasR2) {
+    throw new Error("STORAGE_BACKEND=r2 e credenziali R2 obbligatori su Vercel");
+  }
+
+  if (!process.env.CRON_SECRET) {
+    throw new Error("CRON_SECRET obbligatorio su Vercel");
   }
 }

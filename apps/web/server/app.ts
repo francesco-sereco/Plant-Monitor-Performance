@@ -1,6 +1,11 @@
 import "./lib/env.js";
 import express from "express";
-import { assertSupabaseConfig, assertDataStackSeparation, assertGroqConfig } from "./lib/env.js";
+import {
+  assertSupabaseConfig,
+  assertDataStackSeparation,
+  assertGroqConfig,
+  assertProductionConfig,
+} from "./lib/env.js";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -28,7 +33,27 @@ import { aiRouter } from "./modules/ai/ai.routes.js";
 assertSupabaseConfig();
 assertDataStackSeparation();
 assertGroqConfig();
+assertProductionConfig();
 assertR2Config();
+
+function resolveCorsOrigin() {
+  const allowed = new Set(
+    [
+      process.env.NEXT_PUBLIC_APP_URL,
+      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+    ].filter((value): value is string => Boolean(value))
+  );
+
+  return (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    if (!origin || allowed.has(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error("Origine non consentita da CORS"));
+  };
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootStorage = path.resolve(__dirname, "../../../storage/documents");
@@ -36,7 +61,7 @@ process.env.STORAGE_PATH = process.env.STORAGE_PATH ?? rootStorage;
 
 const app = express();
 
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: resolveCorsOrigin(), credentials: true }));
 app.use(express.json());
 app.use(optionalAuth);
 

@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../middleware/error-handler.js";
+import { getJwtSecret } from "../../lib/env.js";
 import { optionalAuth, requireAuth } from "../../middleware/auth.js";
 
 const loginSchema = z.object({
@@ -30,7 +31,7 @@ authRouter.post(
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     const token = jwt.sign(
       { id: user.id, email: user.email, name: user.name, role: user.role },
-      process.env.JWT_SECRET ?? "dev-secret-change-me",
+      getJwtSecret(),
       { expiresIn: "8h" }
     );
     res.json({

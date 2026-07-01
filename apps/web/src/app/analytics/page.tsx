@@ -52,12 +52,18 @@ function AnalyticsContent() {
       setPlants(p);
       setParameters(params);
       setPoints(pts);
-      const cod = params.find((x) => x.code === "COD");
-      if (cod && !parameterId) setParameterId(cod.id);
-      const ingresso = pts.find((x) => x.name === "Ingresso impianto");
-      const postMbr = pts.find((x) => x.name === "Post MBR");
-      if (ingresso) setInitialPointId(ingresso.id);
-      if (postMbr) setFinalPointId(postMbr.id);
+      if (!parameterId && params.length > 0) {
+        const sorted = [...params].sort((a, b) => a.code.localeCompare(b.code));
+        setParameterId(sorted[0].id);
+      }
+      if (!initialPointId && pts.length > 0) {
+        const sorted = [...pts].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+        setInitialPointId(sorted[0].id);
+      }
+      if (!finalPointId && pts.length > 1) {
+        const sorted = [...pts].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+        setFinalPointId(sorted[sorted.length - 1].id);
+      }
     });
   }, []);
 

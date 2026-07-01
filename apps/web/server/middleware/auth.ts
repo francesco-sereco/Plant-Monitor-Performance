@@ -1,13 +1,10 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import type { AuthUser } from "../lib/config.js";
+import { getJwtSecret } from "../lib/env.js";
 
 function isAuthEnabled() {
   return process.env.AUTH_ENABLED === "true";
-}
-
-function jwtSecret() {
-  return process.env.JWT_SECRET ?? "dev-secret-change-me";
 }
 
 /** Public API paths (relative to /api) that skip mandatory auth. */
@@ -28,7 +25,7 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
 
   try {
     const token = header.slice(7);
-    req.user = jwt.verify(token, jwtSecret()) as AuthUser;
+    req.user = jwt.verify(token, getJwtSecret()) as AuthUser;
   } catch {
     // ignore invalid token; requireAuth will block if needed
   }

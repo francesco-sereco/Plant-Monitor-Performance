@@ -265,6 +265,9 @@ measurementSessionsRouter.post(
       include: { customer: true },
     });
     if (!plant) return res.status(404).json({ error: "Impianto non trovato" });
+    if (data.customerId !== plant.customerId) {
+      return res.status(400).json({ error: "customerId non coerente con l'impianto selezionato" });
+    }
 
     const measurementDate = new Date(data.measurementDate);
     const measurementRows = await Promise.all(
@@ -282,7 +285,7 @@ measurementSessionsRouter.post(
 
     const session = await prisma.measurementSession.create({
       data: {
-        customerId: data.customerId,
+        customerId: plant.customerId,
         plantId: data.plantId,
         measurementDate,
         sourceType: data.sourceType ?? "manual",

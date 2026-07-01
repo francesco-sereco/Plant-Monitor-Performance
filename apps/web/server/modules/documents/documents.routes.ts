@@ -18,6 +18,35 @@ const uploadSchema = z.object({
   documentType: z.enum(["takeoff_report", "lab_autocontrol", "other_pdf"]).optional(),
 });
 
+async function validateDocumentRelations(meta: z.infer<typeof uploadSchema>): Promise<string | null> {
+  const customer = await prisma.customer.findFirst({
+    where: { id: meta.customerId, deletedAt: null },
+  });
+  if (!customer) return "Cliente non trovato";
+
+  if (meta.plantId) {
+    const plant = await prisma.plant.findFirst({
+      where: { id: meta.plantId, customerId: meta.customerId, deletedAt: null },
+    });
+    if (!plant) return "Impianto non valido per il cliente indicato";
+  }
+
+  if (meta.measurementSessionId) {
+    const session = await prisma.measurementSession.findFirst({
+      where: { id: meta.measurementSessionId, deletedAt: null },
+    });
+    if (!session) return "Sessione di rilevazione non trovata";
+    if (session.customerId !== meta.customerId) {
+      return "Sessione non appartenente al cliente indicato";
+    }
+    if (meta.plantId && session.plantId !== meta.plantId) {
+      return "Sessione non appartenente all'impianto indicato";
+    }
+  }
+
+  return null;
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: config.maxPdfSizeMb * 1024 * 1024 },
@@ -57,6 +86,8 @@ documentsRouter.post(
     if (!req.file) return res.status(400).json({ error: "File PDF richiesto" });
 
     const meta = uploadSchema.parse(req.body);
+    const relationError = await validateDocumentRelations(meta);
+    if (relationError) return res.status(400).json({ error: relationError });
     const storedFilename = `${crypto.randomUUID()}${path.extname(req.file.originalname)}`;
     const storage = getDocumentStorage();
     const stored = await storage.save({
@@ -105,6 +136,14 @@ documentsRouter.get(
     if (!(await storage.exists(document.storagePath))) {
       return res.status(404).json({ error: "File non trovato nello storage" });
     }
+
+    await writeAuditLog({
+      actorUserId: req.user?.id,
+      action: "download",
+      entityType: "document",
+      entityId: document.id,
+      afterJson: { filename: document.originalFilename, customerId: document.customerId },
+    });
 
     res.setHeader("Content-Type", document.mimeType);
     res.setHeader(

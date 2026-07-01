@@ -4,6 +4,10 @@ function resolveStorageBackend(): StorageBackend {
   const explicit = process.env.STORAGE_BACKEND?.toLowerCase();
   if (explicit === "r2" || explicit === "local") return explicit;
 
+  if (process.env.VERCEL === "1") {
+    return "r2";
+  }
+
   const hasR2 =
     process.env.R2_ACCOUNT_ID &&
     process.env.R2_ACCESS_KEY_ID &&
@@ -14,9 +18,13 @@ function resolveStorageBackend(): StorageBackend {
 
 const storageBackend = resolveStorageBackend();
 
+import { getJwtSecret } from "./env.js";
+
 export const config = {
   port: Number(process.env.API_PORT ?? 4000),
-  jwtSecret: process.env.JWT_SECRET ?? "dev-secret-change-me",
+  get jwtSecret() {
+    return getJwtSecret();
+  },
   authEnabled: process.env.AUTH_ENABLED === "true",
   maxPdfSizeMb: Number(process.env.MAX_PDF_SIZE_MB ?? 25),
   /** @deprecated Usa config.storage.localPath */

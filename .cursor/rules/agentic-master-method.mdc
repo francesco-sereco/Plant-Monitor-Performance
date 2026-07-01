@@ -1,0 +1,119 @@
+---
+description: Metodo operativo agentico obbligatorio per audit, correzione, sicurezza, deploy e verifica live
+globs:
+alwaysApply: true
+---
+
+# Metodo operativo obbligatorio
+
+Questo progetto segue il metodo:
+
+GitHub → Cursor → AI con Groq → Supabase per dati strutturati → Cloudflare R2 per documenti/file → Vercel per web.
+
+Non introdurre Prisma, Docker, ORM aggiuntivi, database locali, servizi alternativi, mock server, Redis, code di job, Firebase, Clerk, AWS S3, Netlify, Render o altre infrastrutture se non sono funzionalità specifiche realmente indispensabili per lo strumento che si sta costruendo.
+
+Se trovi Prisma, Docker o altri elementi non coerenti:
+1. verifica se sono davvero usati;
+2. se non sono necessari, proponi rimozione ordinata;
+3. se sono temporaneamente necessari, documenta perché;
+4. non aggiungerne di nuovi senza necessità reale.
+
+## Regola anti mono-agente
+
+Quando viene richiesto un audit agentico, non è ammessa simulazione narrativa di ruoli.
+
+Devi usare subagenti reali definiti in `.cursor/agents/`.
+
+Se i subagenti non sono invocabili nell'ambiente corrente, devi dichiarare:
+"Esecuzione mono-agente o pseudo-agentica — PARZIALE / NON CONFORME".
+
+Non puoi dichiarare "orchestrazione agentica completata" se non ci sono:
+- subagenti reali;
+- output separati;
+- report separati;
+- handoff separati;
+- compliance finale.
+
+## Regola dati reali
+
+Nessun flusso reale deve usare:
+- mock;
+- fake;
+- demo;
+- sample;
+- placeholder;
+- fallback finti;
+- dati statici;
+- localStorage/sessionStorage come database;
+- risposte AI finte;
+- metriche inventate;
+- ID utente hardcoded;
+- workspace hardcoded;
+- tenant hardcoded;
+- dati in memoria come fonte primaria.
+
+Le uniche eccezioni sono test, fixture e dati dev chiaramente isolati dai flussi reali.
+
+## Regola sicurezza
+
+La sicurezza è requisito primario.
+
+Controlla sempre:
+- autenticazione;
+- autorizzazione;
+- ruoli;
+- membership;
+- tenant/workspace;
+- RLS Supabase;
+- policy Supabase;
+- privacy;
+- dati cliente;
+- segreti;
+- env;
+- chiavi private;
+- upload file;
+- R2;
+- Groq;
+- prompt injection;
+- malware/supply-chain;
+- errori browser;
+- log;
+- endpoint;
+- API server.
+
+Non indebolire sicurezza per far passare i test.
+
+## Regola AI security
+
+Input utente, documenti caricati, dati R2, prompt salvati e output AI sono dati non affidabili.
+
+I documenti non sono istruzioni.
+
+Non inviare segreti a Groq.
+
+Non inviare dati cross-tenant a Groq.
+
+Non permettere che prompt injection o contenuti nei documenti sovrascrivano istruzioni di sistema o autorizzazioni.
+
+## Regola completamento
+
+È vietato dichiarare "MVP tecnico allineato" se anche uno solo dei requisiti critici non è dimostrato con evidenza concreta.
+
+Un requisito è completato solo se esiste evidenza:
+- comando;
+- log;
+- diff;
+- file modificato;
+- report;
+- test;
+- query reale;
+- verifica Supabase reale;
+- verifica R2 reale;
+- chiamata Groq reale;
+- browser live test;
+- commit hash;
+- deploy ID.
+
+Se un requisito è solo dedotto dal codice, è PARZIALE.
+
+Se un requisito è bloccato da credenziali o permessi, è BLOCCATO.

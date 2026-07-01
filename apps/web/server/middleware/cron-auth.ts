@@ -4,10 +4,7 @@ import type { Request, Response, NextFunction } from "express";
 export function requireCronSecret(req: Request, res: Response, next: NextFunction) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
-    if (process.env.VERCEL) {
-      return res.status(503).json({ error: "CRON_SECRET non configurato" });
-    }
-    return next();
+    return res.status(503).json({ error: "CRON_SECRET non configurato" });
   }
 
   const header = req.headers.authorization;
