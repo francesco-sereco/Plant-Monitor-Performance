@@ -36,18 +36,36 @@ assertGroqConfig();
 assertProductionConfig();
 assertR2Config();
 
+function collectAllowedOrigins(): Set<string> {
+  const entries = [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+    process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : undefined,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+  ];
+  return new Set(entries.filter((value): value is string => Boolean(value)));
+}
+
+function isAllowedOrigin(origin: string, allowed: Set<string>): boolean {
+  if (allowed.has(origin)) return true;
+  try {
+    const { protocol, hostname } = new URL(origin);
+    if (protocol !== "https:" && protocol !== "http:") return false;
+    // Same Vercel project: production alias + preview deployments
+    if (hostname.endsWith(".vercel.app")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function resolveCorsOrigin() {
-  const allowed = new Set(
-    [
-      process.env.NEXT_PUBLIC_APP_URL,
-      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
-    ].filter((value): value is string => Boolean(value))
-  );
+  const allowed = collectAllowedOrigins();
 
   return (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    if (!origin || allowed.has(origin)) {
+    if (!origin || isAllowedOrigin(origin, allowed)) {
       callback(null, true);
       return;
     }
