@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { api, type Customer, type Plant, type ChemicalParameter, type SamplingPoint, type Unit } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { PageHeader, ErrorState, LoadingState } from "@/components/ui";
@@ -125,6 +126,15 @@ function NewMeasurementContent() {
               <option value="">Seleziona...</option>
               {plants.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
+            {form.customerId && plants.length === 0 && (
+              <p className="mt-1 text-sm text-amber-700">
+                Nessun impianto per questo cliente. Aggiungine uno da{" "}
+                <Link href="/customers" className="font-medium underline">
+                  Clienti → Nuovo impianto
+                </Link>
+                .
+              </p>
+            )}
           </div>
           <div>
             <label className="label">Data rilevazione</label>
