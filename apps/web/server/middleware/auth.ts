@@ -13,7 +13,7 @@ function jwtSecret() {
 /** Public API paths (relative to /api) that skip mandatory auth. */
 function isPublicApiPath(req: Request): boolean {
   const path = req.path.startsWith("/api") ? req.path.slice(4) : req.path;
-  return path === "/health" || path.startsWith("/auth");
+  return path === "/health" || path.startsWith("/auth") || path.startsWith("/cron");
 }
 
 export function optionalAuth(req: Request, _res: Response, next: NextFunction) {

@@ -22,6 +22,7 @@ import {
 } from "./modules/measurements/measurements.routes.js";
 import { analyticsRouter } from "./modules/analytics/analytics.routes.js";
 import { documentsRouter } from "./modules/documents/documents.routes.js";
+import { cronRouter } from "./modules/system-checks/cron.routes.js";
 
 assertSupabaseConfig();
 assertDataStackSeparation();
@@ -36,6 +37,8 @@ const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(optionalAuth);
+
+app.use("/api/cron", cronRouter);
 
 app.get("/api/health", (_req, res) => {
   res.json({

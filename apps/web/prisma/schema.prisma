@@ -82,6 +82,11 @@ enum PdfImportStatus {
   discarded
 }
 
+enum SystemCheckStatus {
+  ok
+  error
+}
+
 model User {
   id           String     @id @default(cuid())
   name         String
@@ -358,4 +363,16 @@ model AuditLog {
   actor User? @relation(fields: [actorUserId], references: [id])
 
   @@map("audit_logs")
+}
+
+model SystemCheck {
+  id        String            @id @default(cuid())
+  checkKey  String            @unique @map("check_key")
+  status    SystemCheckStatus
+  note      String
+  checkedAt DateTime          @map("checked_at")
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  @@map("system_checks")
 }
