@@ -9,6 +9,7 @@ import { resolveLimit, calculateCompliance } from "../limits/resolve-limit.js";
 import { decimalToNumber } from "../../lib/prisma.js";
 import type { ImportDocumentType, ImportPreview, ImportPreviewParameter } from "./import.types.js";
 import { buildFallbackPreviewFromText, mergePreview } from "./import.fallback.js";
+import { ensureChemicalParameter, ensureUnit } from "./import.provision.js";
 
 const DOCUMENT_TYPE_LABEL: Record<ImportDocumentType, string> = {
   takeoff_report: "rapportino di asporto",
@@ -28,17 +29,32 @@ function normalizeKey(value: string): string {
 
 function parseJsonFromReply(reply: string): unknown {
   const fenced = reply.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const raw = fenced?.[1]?.trim() ?? reply.trim();
-  try {
-    return JSON.parse(raw);
-  } catch {
-    const start = raw.indexOf("{");
-    const end = raw.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      return JSON.parse(raw.slice(start, end + 1));
+  let raw = fenced?.[1]?.trim() ?? reply.trim();
+  const attempts = [raw];
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start >= 0 && end > start) attempts.push(raw.slice(start, end + 1));
+  // Ripara array parameters troncato (JSON malformato da Groq)
+  const paramsIdx = raw.indexOf('"parameters"');
+  if (paramsIdx >= 0) {
+    const arrStart = raw.indexOf("[", paramsIdx);
+    if (arrStart >= 0) {
+      const objects = raw.slice(arrStart).match(/\{[^{}]*\}/g) ?? [];
+      if (objects.length > 0) {
+        attempts.push(`{"parameters":[${objects.join(",")}]}`);
+      }
     }
-    throw new Error("JSON estratto non valido");
   }
+
+  let lastError: Error | undefined;
+  for (const candidate of attempts) {
+    try {
+      return JSON.parse(candidate);
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error("JSON non valido");
+    }
+  }
+  throw lastError ?? new Error("JSON estratto non valido");
 }
 
 function coercePreview(data: unknown): ImportPreview {
@@ -130,6 +146,13 @@ ${text.slice(0, 10_000)}`;
 
 const PARAM_ALIASES: Record<string, string[]> = {
   COD: ["cod"],
+  O2: ["o2", "ossigeno", "ossigeno disciolto"],
+  TEMP: ["temperatura", "temp"],
+  SST: ["solidi sospesi", "sst"],
+  NO2: ["nitroso", "azoto nitroso"],
+  "N-NO3": ["nitrico", "azoto nitrico", "nitrati"],
+  NH4: ["nh4", "ammoniacale", "azoto ammoniacale"],
+  P: ["fosforo"],
   Nitrati: ["azoto nitrico", "n-no3", "nitrico"],
   pH: ["ph"],
   Torbidità: ["torbidita", "ntu"],
@@ -146,7 +169,11 @@ function matchesAlias(key: string, aliases: string[]): boolean {
   return aliases.some((a) => k.includes(normalizeKey(a)) || normalizeKey(a).includes(k));
 }
 
-export async function enrichImportPreview(preview: ImportPreview): Promise<ImportPreview> {
+export async function enrichImportPreview(
+  preview: ImportPreview,
+  options?: { autoCreateMissing?: boolean }
+): Promise<ImportPreview> {
+  const autoCreate = options?.autoCreateMissing !== false;
   const [parameters, units, samplingPoints] = await Promise.all([
     prisma.chemicalParameter.findMany({ where: { active: true } }),
     prisma.unit.findMany(),
@@ -186,8 +213,33 @@ export async function enrichImportPreview(preview: ImportPreview): Promise<Impor
         )
       );
 
-    const chemicalParameterId = match?.id;
-    const unitId = unitMatch?.id ?? match?.defaultUnitId ?? undefined;
+    let chemicalParameterId = match?.id;
+    let unitId = unitMatch?.id ?? match?.defaultUnitId ?? undefined;
+    let autoCreated = false;
+
+    if (!chemicalParameterId && autoCreate && (row.code || row.name)) {
+      try {
+        const provisioned = await ensureChemicalParameter(row);
+        chemicalParameterId = provisioned.id;
+        unitId = provisioned.defaultUnitId ?? unitId;
+        autoCreated = provisioned.created;
+        row.code = row.code ?? provisioned.code;
+        row.name = row.name ?? provisioned.name;
+        if (autoCreated) {
+          preview.warnings.push(
+            `Parametro aggiunto in anagrafica: ${provisioned.name} (${provisioned.code})`
+          );
+        }
+      } catch {
+        // continua senza auto-create
+      }
+    }
+
+    if (!unitId && row.unit && autoCreate) {
+      const unit = await ensureUnit(row.unit);
+      unitId = unit.id;
+    }
+
     const samplingPointId = pointMatch?.id ?? defaultSamplingPoint?.id;
     const mapped = Boolean(chemicalParameterId && unitId && samplingPointId);
 
@@ -197,6 +249,7 @@ export async function enrichImportPreview(preview: ImportPreview): Promise<Impor
       unitId,
       samplingPointId,
       mapped,
+      autoCreated,
     });
 
     if (!mapped) {
@@ -429,6 +482,8 @@ export async function confirmPdfImport(params: {
     throw new Error("Nessun parametro da importare nell'anteprima");
   }
 
+  const enrichedPreview = await enrichImportPreview(preview, { autoCreateMissing: true });
+
   let plant = await prisma.plant.findFirst({
     where: { id: params.plantId, customerId: params.customerId, deletedAt: null },
     include: { customer: true },
@@ -447,13 +502,15 @@ export async function confirmPdfImport(params: {
 
   if (!plant) throw new Error("Impianto non valido per il cliente selezionato");
 
-  const mapped = preview.parameters.filter((p) => p.mapped && p.chemicalParameterId && p.unitId && p.samplingPointId);
+  const mapped = enrichedPreview.parameters.filter(
+    (p) => p.mapped && p.chemicalParameterId && p.unitId && p.samplingPointId
+  );
   if (mapped.length === 0) {
     throw new Error("Nessun parametro mappato su anagrafica: verifica codici e unità");
   }
 
   const measurementDate = new Date(
-    params.measurementDate ?? preview.measurementDate ?? new Date().toISOString().slice(0, 10)
+    params.measurementDate ?? enrichedPreview.measurementDate ?? new Date().toISOString().slice(0, 10)
   );
 
   const measurementRows = await Promise.all(
@@ -498,8 +555,8 @@ export async function confirmPdfImport(params: {
       plantId: plant.id,
       measurementDate,
       sourceType: "pdf_import",
-      technicianName: preview.technicianName,
-      laboratoryName: preview.laboratoryName,
+      technicianName: enrichedPreview.technicianName,
+      laboratoryName: enrichedPreview.laboratoryName,
       status: "confirmed",
       notes: `Import PDF: ${job.document.originalFilename}`,
       createdById: params.createdById,

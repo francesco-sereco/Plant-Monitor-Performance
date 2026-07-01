@@ -515,7 +515,13 @@ export default function CustomersPage() {
                           {row.value} {row.unit ?? ""}
                         </td>
                         <td>{row.samplingPoint ?? "—"}</td>
-                        <td>{row.mapped ? "Mappato" : "Da verificare"}</td>
+                        <td>
+                          {row.mapped
+                            ? row.autoCreated
+                              ? "Aggiunto automaticamente"
+                              : "Mappato"
+                            : "Da verificare"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
