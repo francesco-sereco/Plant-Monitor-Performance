@@ -18,7 +18,8 @@
     "db:generate": "dotenv -e ../../.env -- prisma generate",
     "test": "vitest run",
     "test:watch": "vitest",
-    "cron:db-check": "dotenv -e ../../.env -- tsx scripts/run-db-check.ts"
+    "cron:db-check": "dotenv -e ../../.env -- tsx scripts/run-db-check.ts",
+    "ai:ping": "dotenv -e ../../.env -- tsx scripts/ai-ping.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.840.0",

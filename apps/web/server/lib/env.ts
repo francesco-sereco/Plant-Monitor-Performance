@@ -79,3 +79,21 @@ export function assertDataStackSeparation(): void {
     );
   }
 }
+
+import { DEFAULT_GROQ_MODEL } from "../modules/ai/groq.client.js";
+
+/** Groq — solo backend. MAI usare NEXT_PUBLIC_ per la API key. */
+export function getGroqEnv() {
+  return {
+    apiKey: process.env.GROQ_API_KEY ?? "",
+    model: process.env.GROQ_MODEL ?? DEFAULT_GROQ_MODEL,
+  };
+}
+
+export function assertGroqConfig(): void {
+  if (!process.env.GROQ_API_KEY) {
+    console.warn(
+      "[PMP] GROQ_API_KEY non impostata: endpoint /api/ai/* non disponibili finché non configurata."
+    );
+  }
+}

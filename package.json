@@ -23,6 +23,7 @@
     "verify:live": "node scripts/verify-live.mjs",
     "setup:r2": "node scripts/setup-r2.mjs",
     "setup:cron": "node scripts/setup-cron-secret.mjs",
+    "ai:ping": "npm run ai:ping -w @pmp/web",
     "admin:create": "node scripts/create-admin-user.mjs"
   },
   "devDependencies": {

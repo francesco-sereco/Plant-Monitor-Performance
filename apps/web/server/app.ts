@@ -1,6 +1,6 @@
 import "./lib/env.js";
 import express from "express";
-import { assertSupabaseConfig, assertDataStackSeparation } from "./lib/env.js";
+import { assertSupabaseConfig, assertDataStackSeparation, assertGroqConfig } from "./lib/env.js";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -23,9 +23,11 @@ import {
 import { analyticsRouter } from "./modules/analytics/analytics.routes.js";
 import { documentsRouter } from "./modules/documents/documents.routes.js";
 import { cronRouter } from "./modules/system-checks/cron.routes.js";
+import { aiRouter } from "./modules/ai/ai.routes.js";
 
 assertSupabaseConfig();
 assertDataStackSeparation();
+assertGroqConfig();
 assertR2Config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -54,12 +56,18 @@ app.get("/api/health", (_req, res) => {
       backend: config.storage.backend,
       bucket: config.storage.backend === "r2" ? config.storage.r2.bucket : undefined,
     },
+    ai: {
+      provider: "groq",
+      configured: Boolean(process.env.GROQ_API_KEY),
+    },
   });
 });
 
 app.use("/api/auth", authRouter);
 
 app.use("/api", requireAuthUnlessPublic);
+
+app.use("/api/ai", aiRouter);
 
 app.use("/api/sectors", sectorsRouter);
 app.use("/api/customers", customersRouter);
